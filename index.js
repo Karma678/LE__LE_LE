@@ -564,6 +564,13 @@ async function postProcessMessage(messageId, type) {
         if (Array.isArray(message.swipes) && message.swipes[swipeId] !== undefined) {
             message.swipes[swipeId] = formatted;
         }
+        if (Array.isArray(message.swipe_info) && message.swipe_info[swipeId]) {
+            if (!message.swipe_info[swipeId].extra || typeof message.swipe_info[swipeId].extra !== 'object') {
+                message.swipe_info[swipeId].extra = {};
+            }
+            message.swipe_info[swipeId].extra.le_eternalism_original = originalText;
+            message.swipe_info[swipeId].extra.le_eternalism_processed = formatted;
+        }
         await context.updateMessageBlock(messageId, message);
         await context.saveChat();
         handleCharacterMessageRendered(messageId);
