@@ -41,6 +41,7 @@ All settings are in **Settings → Extensions → "LE_ETERNALISM"**:
 - **Stage 1 / Stage 3 — use a different API/model** — each stage can run on its own Chat Completion backend (base URL, API key, model, max tokens, temperature) via SillyTavern's own backend proxy (`ChatCompletionService`). Leave unchecked to use the main API.
 - **Stage 3 post-process prompt** — used only when post-processing is enabled.
 - **Prompt library** — named modules (name + preset variable + text + enabled) that Stage 1 can include or exclude.
+- **Save / Export / Import settings** — Save persists immediately; Export downloads a JSON file with the API keys and base URLs removed; Import restores from such a file while keeping your current API keys and base URLs.
 
 ## Notes
 

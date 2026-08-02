@@ -161,6 +161,69 @@ function normalizeVariable(value) {
         .replace(/^\{\{|\}\}$/g, '');
 }
 
+function sanitizeApiBlocks(settings) {
+    const clone = JSON.parse(JSON.stringify(settings));
+    for (const key of ['stage1Api', 'stage3Api']) {
+        if (clone[key] && typeof clone[key] === 'object') {
+            delete clone[key].apiKey;
+            delete clone[key].baseUrl;
+        }
+    }
+    return clone;
+}
+
+function exportSettings() {
+    const data = sanitizeApiBlocks(getSettings());
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `le_eternalism_settings_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toastr.success('LE Eternalism: settings exported (API keys and base URLs excluded).');
+    log('Settings exported.');
+}
+
+async function importSettings(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+        return;
+    }
+    try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            throw new Error('Invalid settings file.');
+        }
+        const context = SillyTavern.getContext();
+        const previous = context.extensionSettings[MODULE_NAME] || {};
+        const preserved = {
+            s1: { apiKey: previous.stage1Api?.apiKey ?? '', baseUrl: previous.stage1Api?.baseUrl ?? '' },
+            s3: { apiKey: previous.stage3Api?.apiKey ?? '', baseUrl: previous.stage3Api?.baseUrl ?? '' },
+        };
+        const sanitized = sanitizeApiBlocks(data);
+        context.extensionSettings[MODULE_NAME] = sanitized;
+        for (const [key, value] of [['stage1Api', preserved.s1], ['stage3Api', preserved.s3]]) {
+            if (context.extensionSettings[MODULE_NAME][key] && typeof context.extensionSettings[MODULE_NAME][key] === 'object') {
+                context.extensionSettings[MODULE_NAME][key].apiKey = value.apiKey;
+                context.extensionSettings[MODULE_NAME][key].baseUrl = value.baseUrl;
+            }
+        }
+        saveSettings();
+        loadSettingsIntoUi();
+        ensureAllMacrosRegistered();
+        toastr.success('LE Eternalism: settings imported (current API keys and base URLs kept).');
+        log('Settings imported.');
+    } catch (error) {
+        toastr.error(`LE Eternalism import failed: ${error.message}`);
+        log(`Import failed: ${error}`);
+    }
+}
+
 function setStatus(text) {
     const el = document.getElementById('le_eternalism_status');
     if (el) {
@@ -882,6 +945,15 @@ async function initExtension() {
             renderLibraryList();
             saveSettings();
         });
+        document.getElementById('le_eternalism_save').addEventListener('click', () => {
+            collectSettingsFromUi();
+            toastr.success('LE Eternalism: settings saved.');
+        });
+        document.getElementById('le_eternalism_export').addEventListener('click', exportSettings);
+        document.getElementById('le_eternalism_import').addEventListener('click', () => {
+            document.getElementById('le_eternalism_import_file').click();
+        });
+        document.getElementById('le_eternalism_import_file').addEventListener('change', importSettings);
 
         context.eventSource.on(context.eventTypes.GENERATION_AFTER_COMMANDS, handleGenerationStart);
         context.eventSource.on(context.eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
