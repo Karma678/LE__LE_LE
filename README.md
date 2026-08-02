@@ -28,6 +28,7 @@ All prompts are editable in **Settings → Extensions → "LE Eternalism — RPG
 
 - **Auto-run pipeline when a message is sent** — intercepts message generation and runs the pipeline instead.
 - **Suppress the default AI reply** — while auto-run is on, normal generation is aborted and the pipeline owns the reply (swipe/regenerate are disabled in this mode; impersonate is unaffected).
+- **Debug mode** — pauses the pipeline after Stage 1 and shows the AI's analysis output plus the parsed include/exclude directives in a popup; continue to Stage 2 or abort the run.
 - **Stage 1 — System prompt 1** (scene analysis commands) and **Stage 1 — System prompt 2** (thinking checklist) — concatenated after the chat history, in that order. Only the chat history is included — persona, character card, world info and preset prompts are excluded. **Stage 1 history limit** caps how many recent tokens of history are sent (0 = unlimited).
 - **Stage 2** main prompt and **Stage 3** post-process prompt.
 - **Prompt library** — named modules (name + text + enabled) that Stage 1 can include or exclude.

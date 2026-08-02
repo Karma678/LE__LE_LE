@@ -3,6 +3,7 @@ const MODULE_NAME = 'le_eternalism';
 const defaultSettings = {
     enabled: false,
     suppressDefaultReply: true,
+    debugMode: false,
     analysisPrompt1: [
         'You are an excellent analyst of roleplay scenes. Your task is to think things through and respond only with commands that match the tone and spirit of the scene. In your answer you write only commands and nothing else.',
         '',
@@ -57,6 +58,14 @@ function saveSettings() {
 
 function clean(text) {
     return String(text ?? '').replace(/\r\n?/g, '\n');
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 function log(message) {
@@ -186,7 +195,7 @@ async function runPipeline(reason) {
     }
 
     isPipelineRunning = true;
-    const handle = context.loader.show({ message: 'Running RPG pipeline...' });
+    let handle = context.loader.show({ message: 'Running RPG pipeline...' });
     log(`Pipeline started (${reason}).`);
     try {
         const historyMessages = await buildStage1History();
@@ -198,6 +207,34 @@ async function runPipeline(reason) {
         const { includes, excludes } = parseAnalysisResult(analysis);
         const selected = selectIncludedPrompts(includes, excludes);
         log(`Stage 1 done. Included modules: ${selected.length > 0 ? selected.map(p => p.name).join(', ') : '(none)'}`);
+
+        if (settings.debugMode) {
+            await handle.hide();
+            const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
+            const popup = new Popup(
+                `<h3>Stage 1 — Analysis output</h3>`
+                + `<pre class="le_eternalism_debug">${escapeHtml(analysis)}</pre>`
+                + `<div class="le_eternalism_debug_summary">`
+                + `Parsed directives — include: ${[...includes].join(', ') || '(none)'}; `
+                + `exclude: ${[...excludes].join(', ') || '(none)'}. `
+                + `Active modules for Stage 2: ${selected.length > 0 ? selected.map(p => p.name).join(', ') : '(none)'}`
+                + `</div>`,
+                POPUP_TYPE.TEXT,
+                '',
+                {
+                    wide: true,
+                    allowVerticalScrolling: true,
+                    okButton: 'Continue to Stage 2',
+                    cancelButton: 'Abort pipeline',
+                },
+            );
+            const result = await popup.show();
+            if (result !== POPUP_RESULT.AFFIRMATIVE) {
+                log('Pipeline aborted by user at Stage 1 debug checkpoint.');
+                return;
+            }
+            handle = context.loader.show({ message: 'Running RPG pipeline...' });
+        }
 
         const stage2Prompt = buildStage2Prompt(settings, selected);
         const draft = await context.generateQuietPrompt({
@@ -337,6 +374,7 @@ function loadSettingsIntoUi() {
     const settings = getSettings();
     document.getElementById('le_eternalism_enabled').checked = !!settings.enabled;
     document.getElementById('le_eternalism_suppress').checked = !!settings.suppressDefaultReply;
+    document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
     document.getElementById('le_eternalism_main').value = settings.mainPrompt;
@@ -350,6 +388,7 @@ function collectSettingsFromUi() {
     const settings = getSettings();
     settings.enabled = document.getElementById('le_eternalism_enabled').checked;
     settings.suppressDefaultReply = document.getElementById('le_eternalism_suppress').checked;
+    settings.debugMode = document.getElementById('le_eternalism_debug').checked;
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
     settings.mainPrompt = clean(document.getElementById('le_eternalism_main').value);
@@ -366,6 +405,7 @@ async function initExtension() {
 
         document.getElementById('le_eternalism_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_suppress').addEventListener('change', collectSettingsFromUi);
+        document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_analysis1').addEventListener('input', () => {
             collectSettingsFromUi();
             updateStage1Preview();
