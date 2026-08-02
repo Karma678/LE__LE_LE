@@ -1014,7 +1014,6 @@ async function initExtension() {
         loadSettingsIntoUi();
         ensureAllMacrosRegistered();
         log(`Library: ${getSettings().library.map(m => `"${m.name}" -> ${m.variable || '(no variable)'}${m.enabled ? '' : ' (DISABLED)'}`).join('; ') || '(empty)'}`);
-        log('Extension ready.');
     } catch (error) {
         console.error('[LE Eternalism] Failed to initialize UI:', error);
     }
