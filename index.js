@@ -597,6 +597,9 @@ function handleCharacterMessageRendered(messageId) {
         return;
     }
     const context = SillyTavern.getContext();
+    if (messageId !== context.chat.length - 1) {
+        return;
+    }
     const message = context.chat[messageId];
     if (!message?.extra?.le_eternalism_original || typeof message.extra.le_eternalism_processed !== 'string') {
         return;
@@ -611,6 +614,25 @@ function handleCharacterMessageRendered(messageId) {
     button.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i>';
     button.addEventListener('click', () => togglePostProcessingState(messageId));
     footer.prepend(button);
+}
+
+function cleanupStaleRevertButtons() {
+    const context = SillyTavern.getContext();
+    const lastId = context.chat.length - 1;
+    document.querySelectorAll('.mes[mesid] .le_eternalism_revert_btn').forEach(button => {
+        const mesElement = button.closest('.mes');
+        const mesId = Number(mesElement?.getAttribute('mesid'));
+        if (Number.isFinite(mesId) && mesId !== lastId) {
+            button.remove();
+        }
+    });
+}
+
+function handleChatLoaded() {
+    const context = SillyTavern.getContext();
+    for (let i = 0; i < context.chat.length; i++) {
+        handleCharacterMessageRendered(i);
+    }
 }
 
 function handleGenerationStart(type, options, dryRun) {
@@ -1058,7 +1080,9 @@ async function initExtension() {
         context.eventSource.on(context.eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
         context.eventSource.on(context.eventTypes.GENERATE_AFTER_COMBINE_PROMPTS, handleCombinePrompts);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
+        context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, cleanupStaleRevertButtons);
         context.eventSource.on(context.eventTypes.CHARACTER_MESSAGE_RENDERED, handleCharacterMessageRendered);
+        context.eventSource.on(context.eventTypes.CHAT_LOADED, handleChatLoaded);
 
         loadSettingsIntoUi();
         ensureAllMacrosRegistered();
