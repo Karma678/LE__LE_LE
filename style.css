@@ -96,11 +96,6 @@
     margin-top: 10px;
 }
 
-.le-eternalism-settings .inline-drawer-content {
-    padding: 0;
-    margin: 0;
-}
-
 .le-eternalism-settings .le_eternalism_section_header {
     font-weight: bold;
     padding: 6px 8px;
@@ -118,12 +113,15 @@
     color: #ff4d80;
 }
 
-.le-eternalism-settings .le_eternalism_board_row {
-    background: linear-gradient(180deg, #57040c 0%, #3d0208 100%);
-    border: 1px solid rgba(216, 4, 45, 0.5);
-    border-radius: 8px;
-    padding: 8px;
-    margin-top: 8px;
+.le-eternalism-settings > .inline-drawer-content {
+    background: linear-gradient(180deg, #5a030a 0%, #3c0206 100%);
+    border: 1px solid rgba(216, 4, 45, 0.45);
+    border-radius: 10px 26px 26px 10px;
+    padding: 10px;
+    margin-top: 6px;
+    box-shadow: inset 10px 0 14px -10px rgba(0, 0, 0, 0.7),
+        inset -10px 0 14px -10px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .le-eternalism-settings .le_eternalism_api_block {
