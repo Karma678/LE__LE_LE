@@ -113,8 +113,7 @@ async function buildStage1History() {
     const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
     const toMessage = m => ({
         role: m.is_user ? 'user' : 'assistant',
-        name: m.name || (m.is_user ? context.name1 : context.name2),
-        content: m.mes,
+        content: `${m.name || (m.is_user ? context.name1 : context.name2)}: ${m.mes}`,
     });
     if (budget <= 0) {
         return messages.map(toMessage);
