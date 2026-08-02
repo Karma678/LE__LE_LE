@@ -28,6 +28,35 @@ const defaultSettings = {
 };
 
 let isPipelineRunning = false;
+const activeModuleVariables = new Map();
+const registeredMacros = new Set();
+
+function ensureMacroRegistered(variable) {
+    const macroName = `le_${variable}`;
+    if (registeredMacros.has(macroName)) {
+        return;
+    }
+    try {
+        const { macros } = SillyTavern.getContext();
+        macros.register(macroName, {
+            description: `LE Eternalism: returns the "${variable}" prompt module content when that module is active, otherwise empty.`,
+            handler: () => activeModuleVariables.get(variable) ?? '',
+        });
+        registeredMacros.add(macroName);
+        log(`Registered macro {{${macroName}}}.`);
+    } catch (error) {
+        console.warn(`[LE Eternalism] Could not register macro ${macroName}:`, error);
+    }
+}
+
+function ensureAllMacrosRegistered() {
+    for (const module of getSettings().library) {
+        const variable = (module.variable ?? '').trim();
+        if (variable) {
+            ensureMacroRegistered(variable);
+        }
+    }
+}
 
 function getSettings() {
     const context = SillyTavern.getContext();
@@ -76,14 +105,18 @@ function log(message) {
 function parseAnalysisResult(text) {
     const includes = new Set();
     const excludes = new Set();
+    const cleaned = String(text)
+        .replace(/```[a-zA-Z]*\n?/gi, '')
+        .replace(/```/g, '')
+        .replace(/`/g, '');
     const regex = /\[(include|exclude):\s*([^\]]+)\]/gi;
     let match;
-    while ((match = regex.exec(text))) {
+    while ((match = regex.exec(cleaned))) {
         const target = match[1].toLowerCase() === 'include' ? includes : excludes;
         for (const name of match[2].split(',')) {
-            const cleaned = name.trim().toLowerCase();
-            if (cleaned) {
-                target.add(cleaned);
+            const cleanedName = name.trim().toLowerCase();
+            if (cleanedName) {
+                target.add(cleanedName);
             }
         }
     }
@@ -139,7 +172,14 @@ function applyVariables(selected) {
             continue;
         }
         const isSelected = module.enabled && module.name && selectedNames.has(module.name.trim().toLowerCase());
-        context.variables.local.set(variable, isSelected ? module.prompt : '');
+        const value = isSelected ? module.prompt : '';
+        activeModuleVariables.set(variable, value);
+        ensureMacroRegistered(variable);
+        try {
+            context.variables.local.set(variable, value);
+        } catch (error) {
+            console.warn(`[LE Eternalism] Could not set variable ${variable}:`, error);
+        }
         log(`Variable "${variable}" ${isSelected ? 'set to module content' : "cleared ('')."}`);
     }
 }
@@ -185,7 +225,8 @@ async function runAnalysisAndApply(reason) {
 
         const { includes, excludes } = parseAnalysisResult(analysis);
         const selected = selectIncludedPrompts(includes, excludes);
-        log(`Stage 1 done. Included modules: ${selected.length > 0 ? selected.map(p => p.name).join(', ') : '(none)'}`);
+        log(`Stage 1 output:\n${analysis}`);
+        log(`Stage 1 parsed. Included modules: ${selected.length > 0 ? selected.map(p => p.name).join(', ') : '(none)'}`);
 
         if (settings.debugMode) {
             await handle.hide();
@@ -394,6 +435,7 @@ function collectSettingsFromUi() {
     settings.postProcessPrompt = clean(document.getElementById('le_eternalism_post').value);
     settings.stage1ContextTokens = Number(document.getElementById('le_eternalism_stage1_tokens').value) || 0;
     saveSettings();
+    ensureAllMacrosRegistered();
 }
 
 async function initExtension() {
@@ -432,6 +474,7 @@ async function initExtension() {
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
 
         loadSettingsIntoUi();
+        ensureAllMacrosRegistered();
         log('Extension ready.');
     } catch (error) {
         console.error('[LE Eternalism] Failed to initialize UI:', error);

@@ -16,7 +16,9 @@ Alternatively, copy this whole folder into `SillyTavern/public/scripts/extension
 
 **Stage 1 — Scene analysis.** When a message is sent (auto-run mode) or the **Run analysis now** button is pressed, the extension sends a request consisting of two separate system messages (*system prompt 1*: analysis commands, *system prompt 2*: thinking checklist) plus the chat history as proper role messages (player messages = `user`, AI messages = `assistant`, speaker name embedded in each message's content; no persona/character card/world info/preset prompts). The AI replies with `[include: Name]` / `[exclude: Name]` directives (comma-separated names allowed).
 
-**Apply variables.** For every prompt-library module that has a **preset variable** configured (e.g. `violence`), the extension writes the module's text into that chat variable when the module is included (`setLocalVariable` — exactly what the preset's own `{{setvar::name::...}}` does), and clears it to `''` when not included. The preset's `{{getvar::name}}` macros then resolve during generation.
+**Apply variables.** For every prompt-library module that has a **preset variable** configured (e.g. `violence`), the extension:
+- registers a macro `{{le_<variable>}}` (e.g. `{{le_violence}}`) whose handler returns the module's text while the module is active and `''` otherwise — insert `{{le_violence}}` into the preset instead of `{{getvar::violence}}`. This is immune to the preset resetting the variable (the LE_EMOTIONALISM "Intro" prompt runs `{{setvar::violence::}}` during prompt building, which would wipe a chat variable set beforehand);
+- also writes the module's text into that chat variable as a fallback (`setLocalVariable`).
 
 **Stage 2 — Generation.** SillyTavern generates normally with your preset (the preset IS Stage 2; the extension does not generate or replace the reply).
 
