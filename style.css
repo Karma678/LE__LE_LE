@@ -48,14 +48,14 @@
 
 /* ---------- Master enable row ---------- */
 .le-eternalism-settings .le_eternalism_master_row {
-    background: linear-gradient(180deg, rgba(212, 175, 55, 0.13), rgba(212, 175, 55, 0.03));
-    border: 1px solid rgba(212, 175, 55, 0.35);
+    background: linear-gradient(180deg, rgba(90, 140, 255, 0.16), rgba(90, 140, 255, 0.04));
+    border: 1px solid rgba(90, 140, 255, 0.4);
     border-radius: 8px;
     padding: 5px 8px;
     margin: 0 2px 12px 6px;
     display: inline-flex;
     align-items: center;
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.06);
+    box-shadow: 0 0 10px rgba(90, 140, 255, 0.12);
 }
 
 .le-eternalism-settings .le_eternalism_master_label {
