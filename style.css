@@ -56,7 +56,7 @@
 }
 
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header {
-    background: #d81b60 !important;
+    background: #d2042d !important;
     color: #ffffff !important;
     border: 1px solid rgba(255, 170, 190, 0.4);
     border-radius: 8px;
@@ -66,7 +66,7 @@
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header:hover,
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header:focus,
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header:active {
-    background: #e5487d !important;
+    background: #e5153f !important;
 }
 
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header .le_eternalism_header_title {
