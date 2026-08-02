@@ -776,15 +776,6 @@ async function previewStage2Messages(messages, title = 'Stage 2 prompt preview')
 }
 
 async function handlePromptReady(eventData) {
-    try {
-        await handlePromptReadyInner(eventData);
-    } catch (error) {
-        console.error('[LE Eternalism] Prompt processing error (generation continues):', error);
-        toastr.warning('LE Eternalism: prompt processing error — generation continues.');
-    }
-}
-
-async function handlePromptReadyInner(eventData) {
     if (eventData?.dryRun) {
         return;
     }
@@ -863,14 +854,6 @@ async function handlePromptReadyInner(eventData) {
 }
 
 function handleCombinePrompts(eventData) {
-    try {
-        handleCombinePromptsInner(eventData);
-    } catch (error) {
-        console.error('[LE Eternalism] Combined prompt processing error:', error);
-    }
-}
-
-function handleCombinePromptsInner(eventData) {
     if (eventData?.dryRun) {
         return;
     }
