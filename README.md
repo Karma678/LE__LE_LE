@@ -1,6 +1,6 @@
 # LE_ETERNALISM
 
-A SillyTavern extension that turns the chat into an RPG engine driven by a three-stage AI pipeline.
+A SillyTavern extension that runs a scene-analysis pipeline in front of your existing roleplay preset and feeds its results into the preset's variables.
 
 ## Installation
 
@@ -14,27 +14,30 @@ Alternatively, copy this whole folder into `SillyTavern/public/scripts/extension
 
 ## How it works
 
-When a user message is sent (auto-run mode) or the **Run RPG pipeline** button is pressed, the extension runs:
+**Stage 1 — Scene analysis.** When a message is sent (auto-run mode) or the **Run analysis now** button is pressed, the extension sends a request consisting of two separate system messages (*system prompt 1*: analysis commands, *system prompt 2*: thinking checklist) plus the chat history as proper role messages (player messages = `user`, AI messages = `assistant`, speaker name embedded in each message's content; no persona/character card/world info/preset prompts). The AI replies with `[include: Name]` / `[exclude: Name]` directives (comma-separated names allowed).
 
-1. **Stage 1 — Scene analysis.** The request is sent as two separate system messages (*system prompt 1*: analysis commands, *system prompt 2*: thinking checklist) plus the chat history as proper role messages (player messages = `user`, AI messages = `assistant`, with the speaker name embedded in each message's content; no persona/character card/world info/preset prompts). The AI replies with `[include: Name]` / `[exclude: Name]` directives (comma-separated names allowed).
-2. **Stage 2 — Main generation.** The main prompt plus the chat context plus the included prompt modules from the library is sent to the AI, producing the draft reply.
-3. **Stage 3 — Formatting.** The draft is sent to the formatting AI together with the post-process prompt. The result is posted to chat as a character reply.
+**Apply variables.** For every prompt-library module that has a **preset variable** configured (e.g. `violence`), the extension writes the module's text into that chat variable when the module is included (`setLocalVariable` — exactly what the preset's own `{{setvar::name::...}}` does), and clears it to `''` when not included. The preset's `{{getvar::name}}` macros then resolve during generation.
+
+**Stage 2 — Generation.** SillyTavern generates normally with your preset (the preset IS Stage 2; the extension does not generate or replace the reply).
+
+**Stage 3 — Post-process (optional, off by default).** If enabled, the generated reply is sent to the formatting AI and the formatted text replaces it in chat.
 
 If no include/exclude directives are found, all enabled library modules are used. `[include: all]` explicitly selects all enabled modules. Excludes always win over includes.
 
 ## Settings
 
-All prompts are editable in **Settings → Extensions → "LE Eternalism — RPG Engine"**:
+All settings are in **Settings → Extensions → "LE Eternalism — RPG Engine"**:
 
-- **Auto-run pipeline when a message is sent** — intercepts message generation and runs the pipeline instead.
-- **Suppress the default AI reply** — while auto-run is on, normal generation is aborted and the pipeline owns the reply (swipe/regenerate are disabled in this mode; impersonate is unaffected).
-- **Debug mode** — pauses the pipeline after Stage 1 and shows the AI's analysis output plus the parsed include/exclude directives in a popup; continue to Stage 2 or abort the run.
-- **Stage 1 — System prompt 1** (scene analysis commands) and **Stage 1 — System prompt 2** (thinking checklist) — concatenated after the chat history, in that order. Only the chat history is included — persona, character card, world info and preset prompts are excluded. **Stage 1 history limit** caps how many recent tokens of history are sent (0 = unlimited).
-- **Stage 2** main prompt and **Stage 3** post-process prompt.
-- **Prompt library** — named modules (name + text + enabled) that Stage 1 can include or exclude.
+- **Auto-run Stage 1 analysis when a message is sent** — runs the analysis (and variable application) before the preset generates.
+- **Debug mode** — pauses after Stage 1 and shows the analysis output plus the parsed directives in a popup; apply variables + continue, or abort.
+- **Post-process the generated reply (Stage 3 recheck)** — off by default; formats the generated reply with the Stage 3 prompt.
+- **Stage 1 — System prompt 1** (analysis commands) and **Stage 1 — System prompt 2** (thinking checklist).
+- **Stage 1 history limit** — caps how many recent tokens of history are sent (0 = unlimited).
+- **Stage 3 post-process prompt** — used only when post-processing is enabled.
+- **Prompt library** — named modules (name + preset variable + text + enabled) that Stage 1 can include or exclude.
 
-## Notes / roadmap
+## Notes
 
-- The pipeline currently re-decides included modules on every message (no persistent scene state yet).
-- Group chats post under the last non-user speaker's name.
-- Default prompts are placeholders — replace them with the real ones.
+- The pipeline re-decides included modules on every message (no persistent scene state yet).
+- Carriage returns are stripped from all request content.
+- Works with the LE_EMOTIONALISM preset: the "Hyper Violence" module maps to the `violence` variable.

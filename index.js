@@ -2,8 +2,8 @@ const MODULE_NAME = 'le_eternalism';
 
 const defaultSettings = {
     enabled: false,
-    suppressDefaultReply: true,
     debugMode: false,
+    postProcessEnabled: false,
     analysisPrompt1: [
         'You are an excellent analyst of roleplay scenes. Your task is to think things through and respond only with commands that match the tone and spirit of the scene. In your answer you write only commands and nothing else.',
         '',
@@ -17,11 +17,6 @@ const defaultSettings = {
         '{2} Is it a sexual scene?',
         '{3} Verify what commands you should send.',
         '</think>',
-    ].join('\n'),
-    mainPrompt: [
-        'You are the RPG engine writing the next reply of this roleplay.',
-        'Continue the scene naturally from the last message, following the active prompt modules below.',
-        'Stay in character, keep the story coherent, and move the scene forward.',
     ].join('\n'),
     postProcessPrompt: [
         'You are the formatting editor of the RPG engine.',
@@ -108,17 +103,6 @@ function selectIncludedPrompts(includes, excludes) {
     return selected.filter(p => !excludes.has(p.name.trim().toLowerCase()));
 }
 
-function buildStage2Prompt(settings, selected) {
-    const parts = [clean(settings.mainPrompt)];
-    if (selected.length > 0) {
-        parts.push('[ACTIVE PROMPT MODULES]');
-        for (const prompt of selected) {
-            parts.push(`### ${clean(prompt.name)} ###\n${clean(prompt.prompt)}`);
-        }
-    }
-    return parts.join('\n\n');
-}
-
 async function buildStage1History() {
     const context = SillyTavern.getContext();
     const settings = getSettings();
@@ -145,34 +129,28 @@ async function buildStage1History() {
     return chunks;
 }
 
-async function postAsCharacter(text) {
+function applyVariables(selected) {
     const context = SillyTavern.getContext();
-    const name = context.characters[context.characterId]?.name
-        ?? [...context.chat].reverse().find(m => !m.is_user && m.name)?.name
-        ?? 'Assistant';
-    const message = {
-        name: name,
-        is_user: false,
-        is_system: false,
-        send_date: Date.now(),
-        mes: text,
-        swipes: [text],
-        swipe_info: {},
-    };
-    context.chat.push(message);
-    context.addOneMessage(message);
-    await context.saveChat();
-    await context.eventSource.emit(context.eventTypes.MESSAGE_RECEIVED, context.chat.length - 1, 'rpg');
-    await context.eventSource.emit(context.eventTypes.CHARACTER_MESSAGE_RENDERED, context.chat.length - 1, 'rpg');
+    const settings = getSettings();
+    const selectedNames = new Set(selected.map(p => p.name.trim().toLowerCase()));
+    for (const module of settings.library) {
+        const variable = (module.variable ?? '').trim();
+        if (!variable) {
+            continue;
+        }
+        const isSelected = module.enabled && module.name && selectedNames.has(module.name.trim().toLowerCase());
+        context.variables.local.set(variable, isSelected ? module.prompt : '');
+        log(`Variable "${variable}" ${isSelected ? 'set to module content' : "cleared ('')."}`);
+    }
 }
 
-async function runPipeline(reason) {
+async function runAnalysisAndApply(reason) {
     const context = SillyTavern.getContext();
     const settings = getSettings();
 
     if (isPipelineRunning) {
-        log('Pipeline already running, skipping.');
-        return;
+        log('Analysis already running, skipping.');
+        return false;
     }
 
     const s = settings;
@@ -188,15 +166,15 @@ async function runPipeline(reason) {
         stage1SystemPrompts.push(clean(s.analysisPrompt).trim());
     }
 
-    if (stage1SystemPrompts.length === 0 || !s.mainPrompt.trim()) {
-        toastr.warning('LE Eternalism: Stage 1 and Stage 2 prompts must not be empty.');
-        log('Aborted: analysis or main prompt is empty.');
-        return;
+    if (stage1SystemPrompts.length === 0) {
+        toastr.warning('LE Eternalism: Stage 1 prompts must not be empty.');
+        log('Aborted: analysis prompts are empty.');
+        return false;
     }
 
     isPipelineRunning = true;
-    let handle = context.loader.show({ message: 'Running RPG pipeline...' });
-    log(`Pipeline started (${reason}).`);
+    let handle = context.loader.show({ message: 'Stage 1: analyzing scene...' });
+    log(`Analysis started (${reason}).`);
     try {
         const historyMessages = await buildStage1History();
         const stage1Messages = stage1SystemPrompts.map(p => ({ role: 'system', content: p }));
@@ -204,6 +182,7 @@ async function runPipeline(reason) {
         const analysis = await context.generateRaw({
             prompt: stage1Messages,
         });
+
         const { includes, excludes } = parseAnalysisResult(analysis);
         const selected = selectIncludedPrompts(includes, excludes);
         log(`Stage 1 done. Included modules: ${selected.length > 0 ? selected.map(p => p.name).join(', ') : '(none)'}`);
@@ -217,78 +196,89 @@ async function runPipeline(reason) {
                 + `<div class="le_eternalism_debug_summary">`
                 + `Parsed directives — include: ${[...includes].join(', ') || '(none)'}; `
                 + `exclude: ${[...excludes].join(', ') || '(none)'}. `
-                + `Active modules for Stage 2: ${selected.length > 0 ? selected.map(p => p.name).join(', ') : '(none)'}`
+                + `Modules to activate: ${selected.length > 0 ? selected.map(p => p.name).join(', ') : '(none)'}`
                 + `</div>`,
                 POPUP_TYPE.TEXT,
                 '',
                 {
                     wide: true,
                     allowVerticalScrolling: true,
-                    okButton: 'Continue to Stage 2',
-                    cancelButton: 'Abort pipeline',
+                    okButton: 'Apply variables and continue',
+                    cancelButton: 'Abort',
                 },
             );
             const result = await popup.show();
             if (result !== POPUP_RESULT.AFFIRMATIVE) {
-                log('Pipeline aborted by user at Stage 1 debug checkpoint.');
-                return;
+                log('Aborted by user at Stage 1 debug checkpoint.');
+                return false;
             }
-            handle = context.loader.show({ message: 'Running RPG pipeline...' });
+            handle = context.loader.show({ message: 'Stage 1: analyzing scene...' });
         }
 
-        const stage2Prompt = buildStage2Prompt(settings, selected);
-        const draft = await context.generateQuietPrompt({
-            quietPrompt: stage2Prompt,
-        });
-        log('Stage 2 done. Draft generated.');
-
-        let final = draft;
-        if (clean(settings.postProcessPrompt).trim()) {
-            final = await context.generateRaw({
-                systemPrompt: clean(settings.postProcessPrompt),
-                prompt: clean(draft),
-            });
-            log('Stage 3 done. Message formatted.');
-        } else {
-            log('Stage 3 skipped (post-process prompt is empty).');
-        }
-
-        await postAsCharacter(final);
-        log('Reply posted to chat.');
+        applyVariables(selected);
+        log('Variables applied. Generation continues.');
+        return true;
     } finally {
         isPipelineRunning = false;
         await handle.hide();
     }
 }
 
-globalThis.leEternalismInterceptor = async function (chat, contextSize, abort, type) {
+async function postProcessMessage(messageId, type) {
+    const context = SillyTavern.getContext();
     const settings = getSettings();
-    if (!settings.enabled || !settings.suppressDefaultReply) {
+
+    if (!settings.postProcessEnabled) {
         return;
     }
-    if (type === 'quiet') {
+    if (type !== 'normal') {
         return;
     }
-    if (type === 'impersonate') {
+    if (!clean(settings.postProcessPrompt).trim()) {
         return;
     }
-    if (type !== 'normal' && type !== 'continue') {
-        toastr.warning('LE Eternalism: swipe/regenerate are disabled while auto-run is on.');
-        abort(true);
+
+    const message = context.chat[messageId];
+    if (!message || message.is_user || message.is_system) {
         return;
     }
-    abort(true);
-    if (isPipelineRunning) {
-        log('Pipeline already running for the previous message.');
+    if (typeof message.mes !== 'string' || !message.mes.trim()) {
         return;
     }
+
     try {
-        await runPipeline('auto');
+        log(`Post-processing message ${messageId}...`);
+        const formatted = await context.generateRaw({
+            systemPrompt: clean(settings.postProcessPrompt),
+            prompt: clean(message.mes),
+        });
+        message.mes = formatted;
+        const swipeId = message.swipe_id ?? 0;
+        if (Array.isArray(message.swipes) && message.swipes[swipeId] !== undefined) {
+            message.swipes[swipeId] = formatted;
+        }
+        await context.updateMessageBlock(messageId, message);
+        await context.saveChat();
+        log('Message formatted.');
     } catch (error) {
-        toastr.error(`LE Eternalism pipeline failed: ${error.message}`);
-        log(`Pipeline failed: ${error}`);
+        toastr.error(`LE Eternalism post-process failed: ${error.message}`);
+        log(`Post-process failed: ${error}`);
     }
-};
+}
+
+function handleGenerationStart(type, options, dryRun) {
+    if (dryRun || type !== 'normal') {
+        return Promise.resolve();
+    }
+    if (!getSettings().enabled) {
+        return Promise.resolve();
+    }
+    return runAnalysisAndApply('auto').catch(error => {
+        toastr.error(`LE Eternalism analysis failed: ${error.message}`);
+        log(`Analysis failed: ${error}`);
+        return false;
+    });
+}
 
 function renderLibraryList() {
     const settings = getSettings();
@@ -309,6 +299,13 @@ function renderLibraryList() {
         nameInput.classList.add('text_pole', 'flex1');
         nameInput.placeholder = 'Prompt name (used in [include: ...] / [exclude: ...])';
         nameInput.value = prompt.name;
+
+        const variableInput = document.createElement('input');
+        variableInput.type = 'text';
+        variableInput.classList.add('text_pole');
+        variableInput.placeholder = 'preset variable (e.g. violence)';
+        variableInput.value = prompt.variable ?? '';
+        variableInput.title = 'When this module is included, its text is written to this chat variable, so {{getvar::name}} in the preset resolves to it. Cleared when not included.';
 
         const enabledLabel = document.createElement('label');
         enabledLabel.classList.add('checkbox_label');
@@ -337,6 +334,10 @@ function renderLibraryList() {
             prompt.name = clean(nameInput.value);
             saveSettings();
         });
+        variableInput.addEventListener('input', () => {
+            prompt.variable = clean(variableInput.value);
+            saveSettings();
+        });
         enabledInput.addEventListener('change', () => {
             prompt.enabled = enabledInput.checked;
             saveSettings();
@@ -346,7 +347,7 @@ function renderLibraryList() {
             saveSettings();
         });
 
-        header.append(nameInput, enabledLabel, removeButton);
+        header.append(nameInput, variableInput, enabledLabel, removeButton);
         item.append(header, promptArea);
         container.appendChild(item);
     });
@@ -373,11 +374,10 @@ function updateStage1Preview() {
 function loadSettingsIntoUi() {
     const settings = getSettings();
     document.getElementById('le_eternalism_enabled').checked = !!settings.enabled;
-    document.getElementById('le_eternalism_suppress').checked = !!settings.suppressDefaultReply;
     document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
+    document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
-    document.getElementById('le_eternalism_main').value = settings.mainPrompt;
     document.getElementById('le_eternalism_post').value = settings.postProcessPrompt;
     document.getElementById('le_eternalism_stage1_tokens').value = settings.stage1ContextTokens;
     renderLibraryList();
@@ -387,11 +387,10 @@ function loadSettingsIntoUi() {
 function collectSettingsFromUi() {
     const settings = getSettings();
     settings.enabled = document.getElementById('le_eternalism_enabled').checked;
-    settings.suppressDefaultReply = document.getElementById('le_eternalism_suppress').checked;
     settings.debugMode = document.getElementById('le_eternalism_debug').checked;
+    settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
-    settings.mainPrompt = clean(document.getElementById('le_eternalism_main').value);
     settings.postProcessPrompt = clean(document.getElementById('le_eternalism_post').value);
     settings.stage1ContextTokens = Number(document.getElementById('le_eternalism_stage1_tokens').value) || 0;
     saveSettings();
@@ -404,8 +403,8 @@ async function initExtension() {
         $('#extensions_settings2').append(settingsHtml);
 
         document.getElementById('le_eternalism_enabled').addEventListener('change', collectSettingsFromUi);
-        document.getElementById('le_eternalism_suppress').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
+        document.getElementById('le_eternalism_post_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_analysis1').addEventListener('input', () => {
             collectSettingsFromUi();
             updateStage1Preview();
@@ -414,20 +413,23 @@ async function initExtension() {
             collectSettingsFromUi();
             updateStage1Preview();
         });
-        document.getElementById('le_eternalism_main').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_post').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_stage1_tokens').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_add_prompt').addEventListener('click', () => {
-            getSettings().library.push({ name: '', prompt: '', enabled: true });
+            getSettings().library.push({ name: '', variable: '', prompt: '', enabled: true });
             renderLibraryList();
             saveSettings();
         });
         document.getElementById('le_eternalism_run').addEventListener('click', () => {
-            runPipeline('manual').catch(error => {
-                toastr.error(`LE Eternalism pipeline failed: ${error.message}`);
-                log(`Pipeline failed: ${error}`);
+            runAnalysisAndApply('manual').then(applied => {
+                if (applied) {
+                    toastr.info('LE Eternalism: variables applied.');
+                }
             });
         });
+
+        context.eventSource.on(context.eventTypes.GENERATION_AFTER_COMMANDS, handleGenerationStart);
+        context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
 
         loadSettingsIntoUi();
         log('Extension ready.');

@@ -7,13 +7,7 @@
         <div class="flex-container alignItemsCenter flexGap5">
             <label for="le_eternalism_enabled" class="checkbox_label">
                 <input id="le_eternalism_enabled" type="checkbox">
-                <span>Auto-run pipeline when a message is sent</span>
-            </label>
-        </div>
-        <div class="flex-container alignItemsCenter flexGap5">
-            <label for="le_eternalism_suppress" class="checkbox_label">
-                <input id="le_eternalism_suppress" type="checkbox">
-                <span>Suppress the default AI reply (pipeline owns the reply)</span>
+                <span>Auto-run Stage 1 analysis when a message is sent</span>
             </label>
         </div>
         <div class="flex-container alignItemsCenter flexGap5">
@@ -22,9 +16,15 @@
                 <span>Debug mode — pause after Stage 1 to inspect the analysis output</span>
             </label>
         </div>
+        <div class="flex-container alignItemsCenter flexGap5">
+            <label for="le_eternalism_post_enabled" class="checkbox_label">
+                <input id="le_eternalism_post_enabled" type="checkbox">
+                <span>Post-process the generated reply (Stage 3 recheck)</span>
+            </label>
+        </div>
         <div class="flex-container alignItemsCenter flexGap5 marginTop5">
-            <button id="le_eternalism_run" class="menu_button">Run RPG pipeline</button>
-            <span class="le_eternalism_hint">Runs on the last user message and posts the result as a character reply.</span>
+            <button id="le_eternalism_run" class="menu_button">Run analysis now</button>
+            <span class="le_eternalism_hint">Analyzes the scene and applies the include/exclude variables to the preset. The preset itself then generates the reply (Stage 2).</span>
         </div>
 
         <label for="le_eternalism_analysis1">Stage 1 &mdash; System prompt 1 (scene analysis commands)</label>
@@ -33,21 +33,18 @@
         <label for="le_eternalism_analysis2">Stage 1 &mdash; System prompt 2 (thinking checklist)</label>
         <textarea id="le_eternalism_analysis2" class="text_pole" rows="4"></textarea>
 
-        <div class="le_eternalism_hint">Stage 1 is sent as two separate system prompts plus the chat history as proper role messages: player messages = user role, AI messages = assistant role. Persona, character card, world info and preset prompts are excluded.</div>
+        <div class="le_eternalism_hint">Stage 1 is sent as two separate system prompts plus the chat history as proper role messages: player messages = user role, AI messages = assistant role (speaker name embedded in each message's content). Persona, character card, world info and preset prompts are excluded.</div>
         <pre id="le_eternalism_stage1_preview"></pre>
 
         <label for="le_eternalism_stage1_tokens">Stage 1 &mdash; history limit (tokens, 0 = unlimited)</label>
         <input id="le_eternalism_stage1_tokens" type="number" min="0" step="500">
 
-        <label for="le_eternalism_main">Stage 2 &mdash; Main generation prompt</label>
-        <textarea id="le_eternalism_main" class="text_pole" rows="6" placeholder="Prompt sent to the main AI together with the chat context and the included prompt modules."></textarea>
-
-        <label for="le_eternalism_post">Stage 3 &mdash; Post-process / formatting prompt (optional)</label>
-        <textarea id="le_eternalism_post" class="text_pole" rows="4" placeholder="Prompt for the formatting AI. Receives only the Stage 2 draft. If empty, Stage 3 is skipped."></textarea>
+        <label for="le_eternalism_post">Stage 3 &mdash; post-process / recheck prompt (optional)</label>
+        <textarea id="le_eternalism_post" class="text_pole" rows="4" placeholder="Prompt for the formatting AI. Receives only the generated reply. Used when 'Post-process the generated reply' is enabled."></textarea>
 
         <div class="marginTop5">
             <b>Prompt library</b>
-            <div class="le_eternalism_hint">Named modules that Stage 1 can include or exclude for Stage 2.</div>
+            <div class="le_eternalism_hint">Named modules that Stage 1 can include or exclude. If a module has a preset variable (e.g. violence), its text is written to that chat variable when included and cleared when not, so {{getvar::name}} in the preset resolves to it.</div>
             <div id="le_eternalism_library_list"></div>
             <button id="le_eternalism_add_prompt" class="menu_button marginTop5">+ Add prompt module</button>
         </div>
