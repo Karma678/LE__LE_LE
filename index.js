@@ -589,12 +589,7 @@ async function togglePostProcessingState(messageId) {
     }
     await context.updateMessageBlock(messageId, message);
     await context.saveChat();
-    if (showOriginal) {
-        document.querySelector(`.mes[mesid="${messageId}"] .le_eternalism_revert_btn`)?.remove();
-        log('Post-processing reverted to original.');
-    } else {
-        log('Post-processing re-applied.');
-    }
+    log(showOriginal ? 'Post-processing reverted to original.' : 'Post-processing re-applied.');
 }
 
 function handleGenerationStopped() {
