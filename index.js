@@ -620,20 +620,25 @@ function cleanupPlaceholderSwipe() {
     const message = context.chat[context.chat.length - 1];
     const index = placeholderSwipeIndex;
     placeholderSwipeIndex = -1;
-    if (!message || !Array.isArray(message.swipes) || message.swipes[index] !== '') {
+    if (!message || !Array.isArray(message.swipes) || index >= message.swipes.length) {
         return;
     }
-    if (message.swipes.length > index + 1) {
-        message.swipes.splice(index, 1);
-        if (message.swipe_id >= index) {
-            message.swipe_id = Math.max(index, message.swipe_id - 1);
-        }
-        if (message.swipe_id > message.swipes.length - 1) {
-            message.swipe_id = message.swipes.length - 1;
-        }
-        message.mes = message.swipes[message.swipe_id] ?? '';
-        log('Removed empty placeholder swipe.');
+    // Generation stopped (no new swipe entries) — keep the empty slot so the body stays empty.
+    if (message.swipes.length <= index + 1) {
+        return;
     }
+    message.swipes.splice(index, 1);
+    if (Array.isArray(message.swipe_info)) {
+        message.swipe_info.splice(index, 1);
+    }
+    if (message.swipe_id >= index) {
+        message.swipe_id = Math.max(index, message.swipe_id - 1);
+    }
+    if (message.swipe_id > message.swipes.length - 1) {
+        message.swipe_id = message.swipes.length - 1;
+    }
+    message.mes = message.swipes[message.swipe_id] ?? '';
+    log('Removed placeholder swipe after generation completed.');
 }
 
 function handleCharacterMessageRendered(messageId) {
@@ -668,6 +673,29 @@ function cleanupStaleRevertButtons() {
         const mesId = Number(mesElement?.getAttribute('mesid'));
         if (Number.isFinite(mesId) && mesId !== lastId) {
             button.remove();
+        }
+    });
+    context.chat.forEach((message, index) => {
+        if (index === lastId || !Array.isArray(message.swipes)) {
+            return;
+        }
+        let changed = false;
+        for (let i = message.swipes.length - 1; i >= 0; i--) {
+            if (message.swipes[i] === '') {
+                message.swipes.splice(i, 1);
+                if (Array.isArray(message.swipe_info)) {
+                    message.swipe_info.splice(i, 1);
+                }
+                changed = true;
+            }
+        }
+        if (changed) {
+            if (message.swipe_id > message.swipes.length - 1) {
+                message.swipe_id = Math.max(0, message.swipes.length - 1);
+            }
+            if (typeof message.mes !== 'string' || message.mes === '') {
+                message.mes = message.swipes[message.swipe_id] ?? '';
+            }
         }
     });
 }
