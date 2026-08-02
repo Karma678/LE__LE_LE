@@ -279,6 +279,29 @@
 }
 
 /* ---------- Macro editor popup ---------- */
+.popup:has(.le_eternalism_editor) {
+    background: linear-gradient(180deg, #121b30 0%, #0b1220 100%) !important;
+    border: 1px solid #2b3752 !important;
+    color: #eceef4 !important;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(236, 238, 244, 0.05);
+}
+
+.popup:has(.le_eternalism_editor) .popup-content {
+    padding: 0 10px 10px 10px;
+}
+
+.popup:has(.le_eternalism_editor) #dialogue_popup_controls .menu_button {
+    background: linear-gradient(180deg, #5a8cff 0%, #3d66c9 100%) !important;
+    border: 1px solid rgba(120, 165, 255, 0.55) !important;
+    color: #ffffff !important;
+    font-weight: bold;
+}
+
+.popup:has(.le_eternalism_editor) #dialogue_popup_controls .menu_button:hover {
+    background: linear-gradient(180deg, #7aa5ff 0%, #4a74d6 100%) !important;
+    box-shadow: 0 0 12px rgba(90, 140, 255, 0.35);
+}
+
 .le_eternalism_editor {
     background: linear-gradient(180deg, #121b30 0%, #0b1220 100%);
     border: 1px solid #2b3752;
