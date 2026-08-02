@@ -4,7 +4,6 @@ const defaultSettings = {
     enabled: false,
     debugMode: false,
     postProcessEnabled: false,
-    previewStage2Prompt: false,
     analysisPrompt1: [
         'You are an excellent analyst of roleplay scenes. Your task is to think things through and respond only with commands that match the tone and spirit of the scene. In your answer you write only commands and nothing else.',
         '',
@@ -371,11 +370,11 @@ async function postProcessMessage(messageId, type) {
 }
 
 function handleGenerationStart(type, options, dryRun) {
-    if (dryRun || type !== 'normal') {
+    if (dryRun) {
         return Promise.resolve();
     }
-    if (getSettings().previewStage2Prompt) {
-        previewArmed = true;
+    if (!['normal', 'continue', 'swipe', 'regenerate'].includes(type)) {
+        return Promise.resolve();
     }
     if (!getSettings().enabled) {
         return Promise.resolve();
@@ -703,7 +702,6 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_enabled').checked = !!settings.enabled;
     document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
     document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
-    document.getElementById('le_eternalism_preview_prompt').checked = !!settings.previewStage2Prompt;
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
     document.getElementById('le_eternalism_post').value = settings.postProcessPrompt;
@@ -717,7 +715,6 @@ function collectSettingsFromUi() {
     settings.enabled = document.getElementById('le_eternalism_enabled').checked;
     settings.debugMode = document.getElementById('le_eternalism_debug').checked;
     settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
-    settings.previewStage2Prompt = document.getElementById('le_eternalism_preview_prompt').checked;
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
     settings.postProcessPrompt = clean(document.getElementById('le_eternalism_post').value);
@@ -735,7 +732,6 @@ async function initExtension() {
         document.getElementById('le_eternalism_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_post_enabled').addEventListener('change', collectSettingsFromUi);
-        document.getElementById('le_eternalism_preview_prompt').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_analysis1').addEventListener('input', () => {
             collectSettingsFromUi();
             updateStage1Preview();

@@ -32,9 +32,8 @@ If no include/exclude directives are found, all enabled library modules are used
 
 All settings are in **Settings → Extensions → "LE Eternalism — RPG Engine"**:
 
-- **Auto-run Stage 1 analysis when a message is sent** — runs the analysis (and variable application) before the preset generates.
+- **Auto-run Stage 1 analysis when a message is sent** — runs the analysis (and variable application) before the preset generates; applies to **Normal**, **Continue**, **Swipe**, and **Regenerate** generations.
 - **Debug mode** — pauses after Stage 1 and shows the analysis output plus the parsed directives in a popup; after you accept it, the Stage 2 prompt preview opens automatically before the request is sent (or abort).
-- **Preview the Stage 2 prompt before sending** — opens an editable window right before the request is sent (like Megumin's preview): view/modify the final messages (`[role:index]` markers), send, or cancel the generation.
 - **View last Stage 2 prompt** — displays the fully combined prompt from the last generation (macros resolved).
 - **Post-process the generated reply (Stage 3 recheck)** — off by default; formats the generated reply with the Stage 3 prompt.
 - **Stage 1 — System prompt 1** (analysis commands) and **Stage 1 — System prompt 2** (thinking checklist).
