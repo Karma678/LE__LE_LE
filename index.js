@@ -166,17 +166,29 @@ function parseAnalysisResult(text) {
     return { includes, excludes };
 }
 
-function selectIncludedPrompts(includes, excludes) {
+function selectIncludedPrompts(includes, excludes, analysisText) {
     const settings = getSettings();
+    const lowerAnalysis = String(analysisText ?? '').toLowerCase();
     const library = settings.library.filter(p => p.enabled && p.name && p.name.trim());
-    if (includes.size === 0 && excludes.size === 0) {
-        return library;
-    }
-    let selected = library;
-    if (includes.size > 0 && !includes.has('all')) {
-        selected = library.filter(p => includes.has(p.name.trim().toLowerCase()));
-    }
-    return selected.filter(p => !excludes.has(p.name.trim().toLowerCase()));
+    const nameOf = m => m.name.trim().toLowerCase();
+    const excludedNames = new Set([...excludes].map(n => String(n).toLowerCase()));
+
+    return library.filter(module => {
+        const triggers = String(module.trigger ?? '')
+            .split(/\r?\n/)
+            .map(t => t.trim())
+            .filter(Boolean);
+        if (triggers.length > 0) {
+            return triggers.some(t => lowerAnalysis.includes(t.toLowerCase()));
+        }
+        if (excludedNames.has(nameOf(module))) {
+            return false;
+        }
+        if (includes.size === 0 || includes.has('all')) {
+            return true;
+        }
+        return includes.has(nameOf(module));
+    });
 }
 
 async function buildStage1History() {
@@ -271,7 +283,7 @@ async function runAnalysisAndApply(reason) {
         });
 
         const { includes, excludes } = parseAnalysisResult(analysis);
-        const selected = selectIncludedPrompts(includes, excludes);
+        const selected = selectIncludedPrompts(includes, excludes, analysis);
         log(`Stage 1 output:\n${analysis}`);
         log(`Stage 1 parsed. Included modules: ${selected.length > 0 ? selected.map(p => p.name).join(', ') : '(none)'}`);
 
@@ -609,6 +621,13 @@ function renderLibraryList() {
         variableInput.value = prompt.variable ?? '';
         variableInput.title = 'Just the variable name (e.g. violence). The extension builds the [[le_violence]] tag from it and swaps it in the preset prompt when the module is active. Brackets are stripped automatically if you paste them.';
 
+        const triggerInput = document.createElement('input');
+        triggerInput.type = 'text';
+        triggerInput.classList.add('text_pole');
+        triggerInput.placeholder = 'trigger command (e.g. [include: Combat Rules])';
+        triggerInput.value = prompt.trigger ?? '';
+        triggerInput.title = 'If this command appears in the Stage 1 analysis output, the module activates (one command per line; case-insensitive). If empty, the module follows the include/exclude directives instead.';
+
         const enabledLabel = document.createElement('label');
         enabledLabel.classList.add('checkbox_label');
         const enabledInput = document.createElement('input');
@@ -641,6 +660,10 @@ function renderLibraryList() {
             variableInput.value = prompt.variable;
             saveSettings();
         });
+        triggerInput.addEventListener('input', () => {
+            prompt.trigger = clean(triggerInput.value);
+            saveSettings();
+        });
         enabledInput.addEventListener('change', () => {
             prompt.enabled = enabledInput.checked;
             saveSettings();
@@ -650,7 +673,7 @@ function renderLibraryList() {
             saveSettings();
         });
 
-        header.append(nameInput, variableInput, enabledLabel, removeButton);
+        header.append(nameInput, variableInput, triggerInput, enabledLabel, removeButton);
         item.append(header, promptArea);
         container.appendChild(item);
     });
@@ -724,7 +747,7 @@ async function initExtension() {
         document.getElementById('le_eternalism_post').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_stage1_tokens').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_add_prompt').addEventListener('click', () => {
-            getSettings().library.push({ name: '', variable: '', prompt: '', enabled: true });
+            getSettings().library.push({ name: '', variable: '', trigger: '', prompt: '', enabled: true });
             renderLibraryList();
             saveSettings();
         });

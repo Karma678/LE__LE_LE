@@ -20,6 +20,8 @@ Alternatively, copy this whole folder into `SillyTavern/public/scripts/extension
 - replaces the `[[le_<variable>]]` tag (e.g. `[[le_violence]]`) in the final chat-completion prompt with the module's text when the module is active, and removes the tag when inactive — the same injection mechanism as Megumin's `[[main_prompt]]` (hooked at `CHAT_COMPLETION_PROMPT_READY`, immune to ST's macro engine);
 - also registers a `{{le_<variable>}}` macro as a fallback where macros resolve, and writes the text to the chat variable.
 
+**Module activation.** A module with a **trigger command** (e.g. `[include: Combat Rules]`, one per line) activates only when that command appears in the Stage 1 output — otherwise its content is empty. Modules without a trigger follow the `[include: ...]` / `[exclude: ...]` directives instead (no directives = all enabled modules active).
+
 **Stage 2 — Generation.** SillyTavern generates normally with your preset (the preset IS Stage 2; the extension does not generate or replace the reply).
 
 **Stage 3 — Post-process (optional, off by default).** If enabled, the generated reply is sent to the formatting AI and the formatted text replaces it in chat.

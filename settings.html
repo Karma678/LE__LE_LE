@@ -54,7 +54,7 @@
 
         <div class="marginTop5">
             <b>Prompt library</b>
-            <div class="le_eternalism_hint">Named modules that Stage 1 can include or exclude. If a module has a preset variable (e.g. violence), insert the tag <code>[[le_violence]]</code> into the preset where you want the module text to appear — the extension swaps it in before the request is sent (same mechanism as Megumin's [[main_prompt]]). While the module is inactive the tag is removed. The \{{le_&lt;variable&gt;}} macro form is also supported where macros resolve.</div>
+            <div class="le_eternalism_hint">Named modules that Stage 1 can activate. <b>Trigger command</b>: if this command appears in the Stage 1 output (e.g. [include: Combat Rules]), the module activates and its content is injected — otherwise it stays empty. If the trigger is empty, the module follows the include/exclude directives instead. With a variable set, insert the tag <code>[[le_violence]]</code> in the preset where the content should appear (same mechanism as Megumin's [[main_prompt]]).</div>
             <div id="le_eternalism_library_list"></div>
             <button id="le_eternalism_add_prompt" class="menu_button marginTop5">+ Add prompt module</button>
         </div>
