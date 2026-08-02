@@ -589,7 +589,31 @@ async function togglePostProcessingState(messageId) {
     }
     await context.updateMessageBlock(messageId, message);
     await context.saveChat();
-    log(showOriginal ? 'Post-processing reverted to original.' : 'Post-processing re-applied.');
+    if (showOriginal) {
+        document.querySelector(`.mes[mesid="${messageId}"] .le_eternalism_revert_btn`)?.remove();
+        log('Post-processing reverted to original.');
+    } else {
+        log('Post-processing re-applied.');
+    }
+}
+
+function handleGenerationStopped() {
+    if (!getSettings().masterEnabled) {
+        return;
+    }
+    const context = SillyTavern.getContext();
+    const message = context.chat[context.chat.length - 1];
+    if (!message || message.is_user || message.is_system) {
+        return;
+    }
+    const body = typeof message.mes === 'string' ? message.mes.trim() : '';
+    const hasReasoning = !!(message.extra?.reasoning || message.extra?.reasoning_text);
+    if (body === '' && hasReasoning) {
+        context.deleteLastMessage().catch(error => {
+            console.warn('[LE Eternalism] Could not delete empty message:', error);
+        });
+        log('Removed empty message (generation stopped before the reply body).');
+    }
 }
 
 function handleCharacterMessageRendered(messageId) {
@@ -626,13 +650,6 @@ function cleanupStaleRevertButtons() {
             button.remove();
         }
     });
-}
-
-function handleChatLoaded() {
-    const context = SillyTavern.getContext();
-    for (let i = 0; i < context.chat.length; i++) {
-        handleCharacterMessageRendered(i);
-    }
 }
 
 function handleGenerationStart(type, options, dryRun) {
@@ -1079,10 +1096,9 @@ async function initExtension() {
         context.eventSource.on(context.eventTypes.GENERATION_AFTER_COMMANDS, handleGenerationStart);
         context.eventSource.on(context.eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
         context.eventSource.on(context.eventTypes.GENERATE_AFTER_COMBINE_PROMPTS, handleCombinePrompts);
+        context.eventSource.on(context.eventTypes.GENERATION_STOPPED, handleGenerationStopped);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, cleanupStaleRevertButtons);
-        context.eventSource.on(context.eventTypes.CHARACTER_MESSAGE_RENDERED, handleCharacterMessageRendered);
-        context.eventSource.on(context.eventTypes.CHAT_LOADED, handleChatLoaded);
 
         loadSettingsIntoUi();
         ensureAllMacrosRegistered();
