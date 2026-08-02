@@ -43,6 +43,10 @@
     margin: 8px 0;
 }
 
+.le_eternalism_prompt {
+    max-height: 60vh;
+}
+
 .le_eternalism_debug_summary {
     font-size: 13px;
     opacity: 0.85;

@@ -4,6 +4,7 @@ const defaultSettings = {
     enabled: false,
     debugMode: false,
     postProcessEnabled: false,
+    showStage2Prompt: false,
     analysisPrompt1: [
         'You are an excellent analyst of roleplay scenes. Your task is to think things through and respond only with commands that match the tone and spirit of the scene. In your answer you write only commands and nothing else.',
         '',
@@ -30,6 +31,7 @@ const defaultSettings = {
 let isPipelineRunning = false;
 const activeModuleVariables = new Map();
 const registeredMacros = new Set();
+let lastStage2Prompt = '';
 
 function ensureMacroRegistered(variable) {
     const macroName = `le_${variable}`;
@@ -327,6 +329,51 @@ function handleGenerationStart(type, options, dryRun) {
     });
 }
 
+function handleCombinePrompts(eventData) {
+    if (eventData?.dryRun) {
+        return;
+    }
+    const prompt = eventData?.prompt;
+    if (typeof prompt === 'string') {
+        lastStage2Prompt = prompt;
+    } else if (Array.isArray(prompt)) {
+        lastStage2Prompt = prompt.map(m => {
+            const role = m?.role ?? 'message';
+            const name = m?.name ? ` (${m.name})` : '';
+            const content = typeof m?.content === 'string' ? m.content : JSON.stringify(m?.content ?? '');
+            return `[${role}${name}]\n${content}`;
+        }).join('\n\n');
+    } else {
+        lastStage2Prompt = String(prompt ?? '');
+    }
+    log(`Stage 2 prompt captured (${lastStage2Prompt.length} chars).`);
+    if (getSettings().showStage2Prompt) {
+        showStage2Prompt();
+    }
+}
+
+async function showStage2Prompt() {
+    const context = SillyTavern.getContext();
+    if (!lastStage2Prompt) {
+        toastr.info('LE Eternalism: no Stage 2 prompt captured yet.');
+        return;
+    }
+    const { Popup, POPUP_TYPE } = context;
+    const popup = new Popup(
+        `<h3>Stage 2 prompt (combined, macros resolved)</h3>`
+        + `<pre class="le_eternalism_debug le_eternalism_prompt">${escapeHtml(lastStage2Prompt)}</pre>`,
+        POPUP_TYPE.TEXT,
+        '',
+        {
+            wide: true,
+            large: true,
+            allowVerticalScrolling: true,
+            okButton: 'Close',
+        },
+    );
+    await popup.show();
+}
+
 function renderLibraryList() {
     const settings = getSettings();
     const container = document.getElementById('le_eternalism_library_list');
@@ -423,6 +470,7 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_enabled').checked = !!settings.enabled;
     document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
     document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
+    document.getElementById('le_eternalism_show_prompt').checked = !!settings.showStage2Prompt;
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
     document.getElementById('le_eternalism_post').value = settings.postProcessPrompt;
@@ -436,6 +484,7 @@ function collectSettingsFromUi() {
     settings.enabled = document.getElementById('le_eternalism_enabled').checked;
     settings.debugMode = document.getElementById('le_eternalism_debug').checked;
     settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
+    settings.showStage2Prompt = document.getElementById('le_eternalism_show_prompt').checked;
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
     settings.postProcessPrompt = clean(document.getElementById('le_eternalism_post').value);
@@ -453,6 +502,7 @@ async function initExtension() {
         document.getElementById('le_eternalism_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_post_enabled').addEventListener('change', collectSettingsFromUi);
+        document.getElementById('le_eternalism_show_prompt').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_analysis1').addEventListener('input', () => {
             collectSettingsFromUi();
             updateStage1Preview();
@@ -475,8 +525,10 @@ async function initExtension() {
                 }
             });
         });
+        document.getElementById('le_eternalism_view_prompt').addEventListener('click', showStage2Prompt);
 
         context.eventSource.on(context.eventTypes.GENERATION_AFTER_COMMANDS, handleGenerationStart);
+        context.eventSource.on(context.eventTypes.GENERATE_AFTER_COMBINE_PROMPTS, handleCombinePrompts);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
 
         loadSettingsIntoUi();
