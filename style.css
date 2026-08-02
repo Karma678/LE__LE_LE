@@ -80,8 +80,10 @@
     background: rgba(216, 27, 96, 0.12);
     border: 1px solid rgba(216, 27, 96, 0.4);
     border-radius: 8px;
-    padding: 8px;
+    padding: 4px 8px;
     margin-bottom: 8px;
+    display: inline-flex;
+    align-items: center;
 }
 
 .le-eternalism-settings .le_eternalism_master_label {
