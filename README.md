@@ -16,7 +16,7 @@ Alternatively, copy this whole folder into `SillyTavern/public/scripts/extension
 
 When a user message is sent (auto-run mode) or the **Run RPG pipeline** button is pressed, the extension runs:
 
-1. **Stage 1 — Scene analysis.** The request is sent as two separate system messages (*system prompt 1*: analysis commands, *system prompt 2*: thinking checklist) plus the chat history as proper role messages (player messages = `user`, AI messages = `assistant`; no persona/character card/world info/preset prompts). The AI replies with `[include: Name]` / `[exclude: Name]` directives (comma-separated names allowed).
+1. **Stage 1 — Scene analysis.** The request is sent as two separate system messages (*system prompt 1*: analysis commands, *system prompt 2*: thinking checklist) plus the chat history as proper role messages (player messages = `user`, AI messages = `assistant`, with the speaker name embedded in each message's content; no persona/character card/world info/preset prompts). The AI replies with `[include: Name]` / `[exclude: Name]` directives (comma-separated names allowed).
 2. **Stage 2 — Main generation.** The main prompt plus the chat context plus the included prompt modules from the library is sent to the AI, producing the draft reply.
 3. **Stage 3 — Formatting.** The draft is sent to the formatting AI together with the post-process prompt. The result is posted to chat as a character reply.
 
