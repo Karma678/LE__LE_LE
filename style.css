@@ -55,7 +55,7 @@
     resize: vertical;
 }
 
-.le-eternalism-settings.inline-drawer > .inline-drawer-toggle.inline-drawer-header {
+#extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header {
     position: relative;
     background: linear-gradient(
         180deg,
@@ -77,7 +77,7 @@
         0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-.le-eternalism-settings.inline-drawer > .inline-drawer-toggle.inline-drawer-header::before {
+#extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header::before {
     content: '';
     position: absolute;
     left: 3px;
@@ -89,7 +89,7 @@
     pointer-events: none;
 }
 
-.le-eternalism-settings.inline-drawer > .inline-drawer-toggle.inline-drawer-header::after {
+#extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header::after {
     content: '';
     position: absolute;
     left: 3px;
