@@ -278,6 +278,47 @@
     color: #aeb8cc;
 }
 
+/* ---------- Macro editor popup ---------- */
+.le_eternalism_editor {
+    background: linear-gradient(180deg, #121b30 0%, #0b1220 100%);
+    border: 1px solid #2b3752;
+    border-radius: 10px;
+    padding: 12px;
+    color: #eceef4;
+    box-shadow: inset 0 1px 0 rgba(236, 238, 244, 0.05);
+}
+
+.le_eternalism_editor .le_eternalism_hint {
+    font-size: 12px;
+    color: #7c869e;
+    line-height: 1.45;
+}
+
+.le_eternalism_editor input.text_pole,
+.le_eternalism_editor textarea.text_pole {
+    background: #060913 !important;
+    border: 1px solid #2b3752 !important;
+    border-radius: 6px !important;
+    color: #eceef4 !important;
+    caret-color: #e8c766;
+}
+
+.le_eternalism_editor input.text_pole:focus,
+.le_eternalism_editor textarea.text_pole:focus {
+    border-color: #d4af37 !important;
+    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35), 0 0 8px rgba(212, 175, 55, 0.15);
+}
+
+.le_eternalism_editor input.text_pole::placeholder,
+.le_eternalism_editor textarea.text_pole::placeholder {
+    color: #7c869e;
+    opacity: 1;
+}
+
+.le_eternalism_editor input[type="checkbox"] {
+    accent-color: #d4af37;
+}
+
 /* ---------- Actions row offset ---------- */
 .le-eternalism-settings .le_eternalism_actions_row {
     padding-left: 4px;

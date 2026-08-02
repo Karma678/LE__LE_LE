@@ -923,7 +923,7 @@ async function openLibraryEditor(index) {
     const wasEmpty = !(prompt.name || '').trim() && !(prompt.prompt || '').trim();
 
     const $content = $(`
-        <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="le_eternalism_editor" style="display:flex; flex-direction:column; gap:8px;">
             <label class="le_eternalism_hint">Macro Editing</label>
             <input type="text" id="le_eternalism_lib_name" class="text_pole" placeholder="Prompt name">
             <div class="flex-container alignItemsCenter flexGap5">
