@@ -592,23 +592,42 @@ async function togglePostProcessingState(messageId) {
     log(showOriginal ? 'Post-processing reverted to original.' : 'Post-processing re-applied.');
 }
 
-function handleGenerationStopped() {
-    if (!getSettings().masterEnabled) {
+let placeholderSwipeIndex = -1;
+
+function handleGenerationStarted(type, params, dryRun) {
+    if (dryRun || !getSettings().masterEnabled) {
+        return;
+    }
+    if (type !== 'swipe' && type !== 'regenerate') {
         return;
     }
     const context = SillyTavern.getContext();
     const message = context.chat[context.chat.length - 1];
-    if (!message || message.is_user || message.is_system) {
+    if (!message || message.is_user || message.is_system || !Array.isArray(message.swipes)) {
         return;
     }
-    const body = typeof message.mes === 'string' ? message.mes.trim() : '';
-    const hasReasoning = !!(message.extra?.reasoning || message.extra?.reasoning_text);
-    if (body === '' && hasReasoning) {
-        context.deleteLastMessage().catch(error => {
-            console.warn('[LE Eternalism] Could not delete empty message:', error);
-        });
-        log('Removed empty message (generation stopped before the reply body).');
+    placeholderSwipeIndex = message.swipes.length;
+    message.swipes.push('');
+    message.swipe_id = placeholderSwipeIndex;
+    message.mes = '';
+}
+
+function cleanupPlaceholderSwipe() {
+    if (placeholderSwipeIndex < 0) {
+        return;
     }
+    const context = SillyTavern.getContext();
+    const message = context.chat[context.chat.length - 1];
+    if (message && Array.isArray(message.swipes) && message.swipes[placeholderSwipeIndex] === '') {
+        if (message.swipes.length > placeholderSwipeIndex + 1) {
+            message.swipes.splice(placeholderSwipeIndex, 1);
+            if (message.swipe_id > message.swipes.length - 1) {
+                message.swipe_id = message.swipes.length - 1;
+            }
+            message.mes = message.swipes[message.swipe_id] ?? '';
+        }
+    }
+    placeholderSwipeIndex = -1;
 }
 
 function handleCharacterMessageRendered(messageId) {
@@ -1089,9 +1108,11 @@ async function initExtension() {
         document.getElementById('le_eternalism_import_file').addEventListener('change', importSettings);
 
         context.eventSource.on(context.eventTypes.GENERATION_AFTER_COMMANDS, handleGenerationStart);
+        context.eventSource.on(context.eventTypes.GENERATION_STARTED, handleGenerationStarted);
+        context.eventSource.on(context.eventTypes.GENERATION_STOPPED, cleanupPlaceholderSwipe);
+        context.eventSource.on(context.eventTypes.GENERATION_ENDED, cleanupPlaceholderSwipe);
         context.eventSource.on(context.eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
         context.eventSource.on(context.eventTypes.GENERATE_AFTER_COMBINE_PROMPTS, handleCombinePrompts);
-        context.eventSource.on(context.eventTypes.GENERATION_STOPPED, handleGenerationStopped);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, cleanupStaleRevertButtons);
 
