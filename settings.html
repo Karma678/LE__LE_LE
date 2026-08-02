@@ -23,8 +23,12 @@
             </label>
         </div>
 
-        <div class="le_eternalism_section le_eternalism_section_stage1">
-            <div class="le_eternalism_section_header">Stage 1 — Scene analysis</div>
+        <div class="le_eternalism_section le_eternalism_section_stage1 inline-drawer">
+            <div class="le_eternalism_section_header inline-drawer-toggle inline-drawer-header">
+                <span>Stage 1 — Scene analysis</span>
+                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+            </div>
+            <div class="inline-drawer-content">
 
             <div class="le_eternalism_hint">Prompt library — modules that Stage 1 can activate.</div>
             <div class="flex-container alignItemsCenter flexGap5">
@@ -60,10 +64,15 @@
                     <input id="le_eternalism_s1_temp" class="text_pole" type="number" min="0" max="2" step="0.1" value="0.7">
                 </div>
             </div>
+            </div>
         </div>
 
-        <div class="le_eternalism_section le_eternalism_section_stage3">
-            <div class="le_eternalism_section_header">Stage 3 — Post-processing</div>
+        <div class="le_eternalism_section le_eternalism_section_stage3 inline-drawer">
+            <div class="le_eternalism_section_header inline-drawer-toggle inline-drawer-header">
+                <span>Stage 3 — Post-processing</span>
+                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+            </div>
+            <div class="inline-drawer-content">
 
             <label for="le_eternalism_post1">System prompt 1 (formatting commands)</label>
             <textarea id="le_eternalism_post1" class="text_pole" rows="4"></textarea>
@@ -87,6 +96,7 @@
                     <label for="le_eternalism_s3_temp" class="le_eternalism_hint">Temp</label>
                     <input id="le_eternalism_s3_temp" class="text_pole" type="number" min="0" max="2" step="0.1" value="0.7">
                 </div>
+            </div>
             </div>
         </div>
 
