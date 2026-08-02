@@ -4,6 +4,7 @@ const defaultSettings = {
     enabled: false,
     debugMode: false,
     postProcessEnabled: true,
+    masterEnabled: true,
     analysisPrompt1: [
         'You are an excellent analyst of roleplay scenes. Your task is to think things through and respond only with commands that match the tone and spirit of the scene. In your answer you write only commands and nothing else.',
         '',
@@ -87,7 +88,12 @@ function ensureMacroRegistered(variable) {
     if (registeredMacros.has(macroName)) {
         return;
     }
-    const handler = () => activeModuleVariables.get(variable) ?? '';
+    const handler = () => {
+        if (!getSettings().masterEnabled) {
+            return '';
+        }
+        return activeModuleVariables.get(variable) ?? '';
+    };
     const context = SillyTavern.getContext();
     try {
         context.macros.register(macroName, {
@@ -339,6 +345,9 @@ async function runAnalysisAndApply(reason) {
         log('Analysis already running, skipping.');
         return false;
     }
+    if (!settings.masterEnabled) {
+        return false;
+    }
 
     const s = settings;
     const stage1SystemPrompts = [];
@@ -455,7 +464,7 @@ async function postProcessMessage(messageId, type) {
     const context = SillyTavern.getContext();
     const settings = getSettings();
 
-    if (!settings.postProcessEnabled) {
+    if (!settings.postProcessEnabled || !settings.masterEnabled) {
         return;
     }
 
@@ -574,6 +583,9 @@ function handleGenerationStart(type, options, dryRun) {
 }
 
 function applyPromptReplacements(content) {
+    if (!getSettings().masterEnabled) {
+        return content;
+    }
     let result = content;
     for (const module of getSettings().library) {
         const variable = normalizeVariable(module.variable);
@@ -658,6 +670,9 @@ async function previewStage2Messages(messages, title = 'Stage 2 prompt preview')
 
 async function handlePromptReady(eventData) {
     if (eventData?.dryRun) {
+        return;
+    }
+    if (!getSettings().masterEnabled) {
         return;
     }
     const messages = eventData?.chat;
@@ -906,6 +921,7 @@ function bindApiBlock(prefix) {
 
 function loadSettingsIntoUi() {
     const settings = getSettings();
+    document.getElementById('le_eternalism_master').checked = !!settings.masterEnabled;
     document.getElementById('le_eternalism_enabled').checked = !!settings.enabled;
     document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
     document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
@@ -922,6 +938,7 @@ function loadSettingsIntoUi() {
 
 function collectSettingsFromUi() {
     const settings = getSettings();
+    settings.masterEnabled = document.getElementById('le_eternalism_master').checked;
     settings.enabled = document.getElementById('le_eternalism_enabled').checked;
     settings.debugMode = document.getElementById('le_eternalism_debug').checked;
     settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
@@ -942,6 +959,7 @@ async function initExtension() {
         const settingsHtml = await context.renderExtensionTemplateAsync('third-party/LE_ETERNALISM', 'settings');
         $('#extensions_settings2').append(settingsHtml);
 
+        document.getElementById('le_eternalism_master').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_post_enabled').addEventListener('change', collectSettingsFromUi);
