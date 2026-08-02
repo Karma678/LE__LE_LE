@@ -1,0 +1,33 @@
+.le-eternalism-settings .le_eternalism_hint {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.le-eternalism-settings textarea.text_pole {
+    width: 100%;
+    resize: vertical;
+}
+
+.le-eternalism-settings .le_eternalism_lib_item {
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    padding: 6px;
+    margin-top: 6px;
+}
+
+.le-eternalism-settings .le_eternalism_lib_item textarea.text_pole {
+    margin-top: 6px;
+}
+
+#le_eternalism_log,
+#le_eternalism_stage1_preview {
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 150px;
+    overflow-y: auto;
+    font-size: 12px;
+    margin-top: 10px;
+    padding: 6px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+}

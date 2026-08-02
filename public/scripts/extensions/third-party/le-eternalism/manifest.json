@@ -1,0 +1,9 @@
+{
+    "display_name": "LE Eternalism RPG Engine",
+    "js": "index.js",
+    "css": "style.css",
+    "author": "um5130384-cmd",
+    "version": "0.1.0",
+    "loading_order": 10,
+    "generate_interceptor": "leEternalismInterceptor"
+}
