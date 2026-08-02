@@ -5,6 +5,7 @@ const defaultSettings = {
     debugMode: false,
     postProcessEnabled: false,
     showStage2Prompt: false,
+    previewStage2Prompt: false,
     analysisPrompt1: [
         'You are an excellent analyst of roleplay scenes. Your task is to think things through and respond only with commands that match the tone and spirit of the scene. In your answer you write only commands and nothing else.',
         '',
@@ -32,6 +33,7 @@ let isPipelineRunning = false;
 const activeModuleVariables = new Map();
 const registeredMacros = new Set();
 let lastStage2Prompt = '';
+let previewArmed = false;
 
 function ensureMacroRegistered(variable) {
     const macroName = `le_${variable}`;
@@ -324,6 +326,9 @@ function handleGenerationStart(type, options, dryRun) {
     if (dryRun || type !== 'normal') {
         return Promise.resolve();
     }
+    if (getSettings().previewStage2Prompt) {
+        previewArmed = true;
+    }
     if (!getSettings().enabled) {
         return Promise.resolve();
     }
@@ -355,7 +360,63 @@ function applyPromptReplacements(content) {
     return result;
 }
 
-function handlePromptReady(eventData) {
+function serializeMessages(messages) {
+    return messages.map((m, i) => {
+        const role = m?.role ?? 'message';
+        const name = m?.name ? ` (${m.name})` : '';
+        const content = typeof m?.content === 'string' ? m.content : JSON.stringify(m?.content ?? '');
+        return `[${role}:${i}${name}]\n${content}`;
+    }).join('\n\n');
+}
+
+function deserializeMessages(text, messages) {
+    const blocks = [];
+    const regex = /^\[(system|user|assistant|tool):(\d+)(?: \(([^)]*)\))?\]\r?\n([\s\S]*?)(?=^\s*\[(?:system|user|assistant|tool):\d+[^\]]*\]|$)/gm;
+    let match;
+    while ((match = regex.exec(text))) {
+        blocks.push({ index: Number(match[2]), content: match[4].replace(/\s+$/, '') });
+    }
+    if (blocks.length !== messages.length) {
+        return false;
+    }
+    for (let i = 0; i < blocks.length; i++) {
+        if (blocks[i].index !== i || typeof messages[i].content !== 'string') {
+            return false;
+        }
+    }
+    for (let i = 0; i < blocks.length; i++) {
+        messages[i].content = blocks[i].content;
+    }
+    return true;
+}
+
+async function previewStage2Messages(messages) {
+    const context = SillyTavern.getContext();
+    const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
+    const $content = $(`
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            <div class="le_eternalism_hint">Review or modify the Stage 2 prompt before it is sent. Message boundaries are marked as [role:index]. Do not remove or reorder these markers.</div>
+            <textarea class="text_pole le_eternalism_preview_edit">${escapeHtml(serializeMessages(messages))}</textarea>
+        </div>
+    `);
+    let liveText = serializeMessages(messages);
+    $content.find('textarea').on('input', function () {
+        liveText = $(this).val();
+    });
+    const popup = new Popup($content, POPUP_TYPE.CONFIRM, 'Stage 2 prompt preview', {
+        okButton: 'Send prompt',
+        cancelButton: 'Cancel generation',
+        wide: true,
+        large: true,
+    });
+    const result = await popup.show();
+    if (result !== POPUP_RESULT.AFFIRMATIVE) {
+        return null;
+    }
+    return deserializeMessages(liveText, messages);
+}
+
+async function handlePromptReady(eventData) {
     if (eventData?.dryRun) {
         return;
     }
@@ -393,6 +454,24 @@ function handlePromptReady(eventData) {
     });
     if (replacements > 0) {
         log(`Prompt injection done (${replacements} replacement(s)).`);
+    }
+
+    if (previewArmed) {
+        previewArmed = false;
+        const applied = await previewStage2Messages(messages);
+        if (applied === null) {
+            try {
+                SillyTavern.getContext().stopGeneration();
+            } catch (error) {
+                console.warn('[LE Eternalism] Could not stop generation:', error);
+            }
+            toastr.info('LE Eternalism: generation cancelled.');
+            return;
+        }
+        if (applied === false) {
+            toastr.warning('LE Eternalism: edits not applied (message structure changed). Sending the original prompt.');
+        }
+        lastStage2Prompt = serializeMessages(messages);
     }
 }
 
@@ -545,6 +624,7 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
     document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
     document.getElementById('le_eternalism_show_prompt').checked = !!settings.showStage2Prompt;
+    document.getElementById('le_eternalism_preview_prompt').checked = !!settings.previewStage2Prompt;
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
     document.getElementById('le_eternalism_post').value = settings.postProcessPrompt;
@@ -559,6 +639,7 @@ function collectSettingsFromUi() {
     settings.debugMode = document.getElementById('le_eternalism_debug').checked;
     settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
     settings.showStage2Prompt = document.getElementById('le_eternalism_show_prompt').checked;
+    settings.previewStage2Prompt = document.getElementById('le_eternalism_preview_prompt').checked;
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
     settings.postProcessPrompt = clean(document.getElementById('le_eternalism_post').value);
@@ -577,6 +658,7 @@ async function initExtension() {
         document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_post_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_show_prompt').addEventListener('change', collectSettingsFromUi);
+        document.getElementById('le_eternalism_preview_prompt').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_analysis1').addEventListener('input', () => {
             collectSettingsFromUi();
             updateStage1Preview();

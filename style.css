@@ -47,6 +47,14 @@
     max-height: 60vh;
 }
 
+.le_eternalism_preview_edit {
+    width: 100%;
+    height: 50vh;
+    font-family: monospace;
+    font-size: 12px;
+    resize: vertical;
+}
+
 .le_eternalism_debug_summary {
     font-size: 13px;
     opacity: 0.85;
