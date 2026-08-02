@@ -56,9 +56,9 @@
 }
 
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header {
-    background: #8b0000 !important;
+    background: #d81b60 !important;
     color: #ffffff !important;
-    border: 1px solid rgba(255, 170, 170, 0.4);
+    border: 1px solid rgba(255, 170, 190, 0.4);
     border-radius: 8px;
     padding: 8px 10px;
 }
@@ -66,7 +66,7 @@
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header:hover,
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header:focus,
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header:active {
-    background: #9e0e0e !important;
+    background: #e5487d !important;
 }
 
 #extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header .le_eternalism_header_title {
@@ -76,13 +76,9 @@
     font-weight: bold;
 }
 
-#extensions_settings2 .le-eternalism-settings > .inline-drawer-toggle.inline-drawer-header .le_eternalism_header_title i {
-    color: #ffd54f;
-}
-
 .le-eternalism-settings .le_eternalism_master_row {
-    background: rgba(96, 165, 250, 0.12);
-    border: 1px solid var(--SmartThemeBorderColor);
+    background: rgba(216, 27, 96, 0.12);
+    border: 1px solid rgba(216, 27, 96, 0.4);
     border-radius: 8px;
     padding: 8px;
     margin-bottom: 8px;
@@ -94,7 +90,7 @@
 }
 
 .le-eternalism-settings .le_eternalism_section {
-    border: 1px solid var(--SmartThemeBorderColor);
+    border: 1px solid rgba(216, 27, 96, 0.35);
     border-radius: 8px;
     padding: 8px;
     margin-top: 10px;
@@ -113,20 +109,25 @@
 }
 
 .le-eternalism-settings .le_eternalism_section_stage1 .le_eternalism_section_header {
-    background: rgba(96, 165, 250, 0.15);
-    color: #60a5fa;
+    background: rgba(216, 27, 96, 0.18);
+    color: #e91e63;
 }
 
 .le-eternalism-settings .le_eternalism_section_stage3 .le_eternalism_section_header {
-    background: rgba(251, 191, 36, 0.12);
-    color: #fbbf24;
+    background: rgba(140, 10, 45, 0.22);
+    color: #ff4d80;
 }
 
 .le-eternalism-settings .le_eternalism_api_block {
-    border: 1px solid var(--SmartThemeBorderColor);
+    border: 1px solid rgba(216, 27, 96, 0.35);
     border-radius: 8px;
     padding: 6px;
     margin-top: 8px;
+}
+
+#le_eternalism_log,
+#le_eternalism_stage1_preview {
+    border-color: rgba(216, 27, 96, 0.35);
 }
 
 .le-eternalism-settings .le_eternalism_api_block input[type="text"],
