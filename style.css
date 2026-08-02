@@ -164,9 +164,6 @@
 }
 
 /* Important actions: eternal gold accent */
-#le_eternalism_save,
-#le_eternalism_export,
-#le_eternalism_import,
 #le_eternalism_lib_add {
     background: linear-gradient(180deg, #d4af37 0%, #a8892a 100%) !important;
     border: 1px solid rgba(232, 199, 102, 0.55) !important;
@@ -174,12 +171,26 @@
     font-weight: bold;
 }
 
-#le_eternalism_save:hover,
-#le_eternalism_export:hover,
-#le_eternalism_import:hover,
 #le_eternalism_lib_add:hover {
     background: linear-gradient(180deg, #e8c766 0%, #c29b31 100%) !important;
     box-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
+}
+
+/* Save / Export / Import: blue */
+#le_eternalism_save,
+#le_eternalism_export,
+#le_eternalism_import {
+    background: linear-gradient(180deg, #5a8cff 0%, #3d66c9 100%) !important;
+    border: 1px solid rgba(120, 165, 255, 0.55) !important;
+    color: #ffffff !important;
+    font-weight: bold;
+}
+
+#le_eternalism_save:hover,
+#le_eternalism_export:hover,
+#le_eternalism_import:hover {
+    background: linear-gradient(180deg, #7aa5ff 0%, #4a74d6 100%) !important;
+    box-shadow: 0 0 12px rgba(90, 140, 255, 0.35);
 }
 
 /* ---------- API blocks ---------- */
@@ -206,6 +217,7 @@
     color: #aeb8cc !important;
     font-family: 'Courier New', Consolas, monospace;
     box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.65);
+    padding-left: 12px;
 }
 
 #le_eternalism_log,
