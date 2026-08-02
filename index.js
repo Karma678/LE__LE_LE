@@ -605,18 +605,12 @@ function handleCharacterMessageRendered(messageId) {
     if (!footer || footer.querySelector('.le_eternalism_revert_btn')) {
         return;
     }
-    const makeButton = (icon, title) => {
-        const button = document.createElement('div');
-        button.classList.add('mes_button', 'le_eternalism_revert_btn');
-        button.title = title;
-        button.innerHTML = `<i class="fa-solid ${icon}"></i>`;
-        button.addEventListener('click', () => togglePostProcessingState(messageId));
-        return button;
-    };
-    footer.append(
-        makeButton('fa-arrow-left', 'Revert post-processing (show original)'),
-        makeButton('fa-arrow-right', 'Re-apply post-processing'),
-    );
+    const button = document.createElement('div');
+    button.classList.add('mes_button', 'le_eternalism_revert_btn');
+    button.title = 'Go Back (revert post-processing)';
+    button.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i>';
+    button.addEventListener('click', () => togglePostProcessingState(messageId));
+    footer.prepend(button);
 }
 
 function handleGenerationStart(type, options, dryRun) {
