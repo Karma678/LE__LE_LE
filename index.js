@@ -101,6 +101,10 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;');
 }
 
+function escapeRegex(text) {
+    return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function log(message) {
     console.log(`[LE Eternalism] ${message}`);
     const logEl = document.getElementById('le_eternalism_log');
@@ -337,17 +341,59 @@ function applyPromptReplacements(content) {
         if (!variable) {
             continue;
         }
-        const macroName = `{{le_${variable}}}`;
-        if (!result.includes(macroName)) {
-            continue;
+        const value = activeModuleVariables.get(variable) ?? '';
+        for (const tag of [`[[le_${variable}]]`, `{{le_${variable}}}`]) {
+            if (!result.includes(tag)) {
+                continue;
+            }
+            const regex = new RegExp(escapeRegex(tag), 'gi');
+            const count = (result.match(regex) || []).length;
+            result = result.replace(regex, value);
+            log(`Replaced ${tag} in Stage 2 prompt (${count} occurrence(s)).`);
         }
-        const escaped = macroName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escaped, 'gi');
-        const count = (result.match(regex) || []).length;
-        result = result.replace(regex, activeModuleVariables.get(variable) ?? '');
-        log(`Replaced ${macroName} in Stage 2 prompt (${count} occurrence(s)).`);
     }
     return result;
+}
+
+function handlePromptReady(eventData) {
+    if (eventData?.dryRun) {
+        return;
+    }
+    const messages = eventData?.chat;
+    if (!Array.isArray(messages)) {
+        return;
+    }
+    const context = SillyTavern.getContext();
+    const modules = getSettings().library.filter(m => (m.variable ?? '').trim());
+    if (modules.length === 0) {
+        return;
+    }
+    let replacements = 0;
+    messages.forEach(msg => {
+        if (!msg || typeof msg.content !== 'string') {
+            return;
+        }
+        for (const module of modules) {
+            const variable = module.variable.trim();
+            for (const tag of [`[[le_${variable}]]`, `{{le_${variable}}}`]) {
+                if (!msg.content.includes(tag)) {
+                    continue;
+                }
+                const value = activeModuleVariables.get(variable) ?? '';
+                const processed = clean(typeof context.substituteParams === 'function' ? context.substituteParams(value) : value);
+                if (processed.trim() === '') {
+                    msg.content = msg.content.replace(new RegExp(`^[ \\t]*${escapeRegex(tag)}[ \\t]*\\r?\\n?`, 'gm'), '');
+                }
+                msg.content = msg.content.replace(new RegExp(escapeRegex(tag), 'g'), processed);
+                replacements++;
+                log(`Replaced ${tag} in prompt (${processed.length} chars).`);
+            }
+        }
+        msg.content = msg.content.replace(/(?:^[ \t]*\[\[le_[^\]]*\]\][ \t]*\r?\n?)|(?:\[\[le_[^\]]*\]\])/gm, '');
+    });
+    if (replacements > 0) {
+        log(`Prompt injection done (${replacements} replacement(s)).`);
+    }
 }
 
 function handleCombinePrompts(eventData) {
@@ -556,6 +602,7 @@ async function initExtension() {
         document.getElementById('le_eternalism_view_prompt').addEventListener('click', showStage2Prompt);
 
         context.eventSource.on(context.eventTypes.GENERATION_AFTER_COMMANDS, handleGenerationStart);
+        context.eventSource.on(context.eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
         context.eventSource.on(context.eventTypes.GENERATE_AFTER_COMBINE_PROMPTS, handleCombinePrompts);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
 

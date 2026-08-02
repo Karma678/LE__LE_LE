@@ -54,7 +54,7 @@
 
         <div class="marginTop5">
             <b>Prompt library</b>
-            <div class="le_eternalism_hint">Named modules that Stage 1 can include or exclude. If a module has a preset variable (e.g. violence), the extension registers a macro <code>\{{le_&lt;variable&gt;}}</code> (e.g. \{{le_violence}}) that returns the module text while the module is active — insert it into the preset instead of \{{getvar::variable}} (your preset's own \{{setvar::violence::}} reset would wipe the variable during prompt building).</div>
+            <div class="le_eternalism_hint">Named modules that Stage 1 can include or exclude. If a module has a preset variable (e.g. violence), insert the tag <code>[[le_violence]]</code> into the preset where you want the module text to appear — the extension swaps it in before the request is sent (same mechanism as Megumin's [[main_prompt]]). While the module is inactive the tag is removed. The \{{le_&lt;variable&gt;}} macro form is also supported where macros resolve.</div>
             <div id="le_eternalism_library_list"></div>
             <button id="le_eternalism_add_prompt" class="menu_button marginTop5">+ Add prompt module</button>
         </div>
