@@ -429,15 +429,18 @@ function deserializeMessages(text, messages) {
 async function previewStage2Messages(messages) {
     const context = SillyTavern.getContext();
     const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
+    const initialText = serializeMessages(messages);
     const $content = $(`
         <div style="display:flex; flex-direction:column; gap:10px;">
             <div class="le_eternalism_hint">Review or modify the Stage 2 prompt before it is sent. Message boundaries are marked as [role:index]. Do not remove or reorder these markers.</div>
-            <textarea class="text_pole le_eternalism_preview_edit">${escapeHtml(serializeMessages(messages))}</textarea>
+            <textarea class="text_pole le_eternalism_preview_edit">${escapeHtml(initialText)}</textarea>
         </div>
     `);
-    let liveText = serializeMessages(messages);
+    let liveText = initialText;
+    let dirty = false;
     $content.find('textarea').on('input', function () {
         liveText = $(this).val();
+        dirty = true;
     });
     const popup = new Popup($content, POPUP_TYPE.CONFIRM, 'Stage 2 prompt preview', {
         okButton: 'Send prompt',
@@ -448,6 +451,9 @@ async function previewStage2Messages(messages) {
     const result = await popup.show();
     if (result !== POPUP_RESULT.AFFIRMATIVE) {
         return null;
+    }
+    if (!dirty) {
+        return true;
     }
     return deserializeMessages(liveText, messages);
 }
@@ -502,20 +508,28 @@ async function handlePromptReady(eventData) {
 
     if (previewArmed && !rawRequestInFlight) {
         previewArmed = false;
-        const applied = await previewStage2Messages(messages);
-        if (applied === null) {
-            try {
-                SillyTavern.getContext().stopGeneration();
-            } catch (error) {
-                console.warn('[LE Eternalism] Could not stop generation:', error);
+        try {
+            log(`Stage 2 request ready (${messages.length} messages).`);
+            const applied = await previewStage2Messages(messages);
+            if (applied === null) {
+                try {
+                    SillyTavern.getContext().stopGeneration();
+                } catch (error) {
+                    console.warn('[LE Eternalism] Could not stop generation:', error);
+                }
+                toastr.info('LE Eternalism: generation cancelled.');
+                return;
             }
-            toastr.info('LE Eternalism: generation cancelled.');
-            return;
+            if (applied === false) {
+                toastr.warning('LE Eternalism: edits not applied (message structure changed). Sending the original prompt.');
+            } else {
+                log('Preview confirmed — sending prompt.');
+            }
+            lastStage2Prompt = serializeMessages(messages);
+        } catch (error) {
+            console.error('[LE Eternalism] Preview failed, sending the original prompt:', error);
+            toastr.warning('LE Eternalism: preview failed — sending the original prompt.');
         }
-        if (applied === false) {
-            toastr.warning('LE Eternalism: edits not applied (message structure changed). Sending the original prompt.');
-        }
-        lastStage2Prompt = serializeMessages(messages);
     }
 }
 
