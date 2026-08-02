@@ -128,7 +128,11 @@ function parseAnalysisResult(text) {
     while ((match = regex.exec(cleaned))) {
         const target = match[1].toLowerCase() === 'include' ? includes : excludes;
         for (const name of match[2].split(',')) {
-            const cleanedName = name.trim().toLowerCase();
+            const cleanedName = name
+                .trim()
+                .toLowerCase()
+                .replace(/^["'`]+|["'`]+$/g, '')
+                .replace(/[.,;:]+$/g, '');
             if (cleanedName) {
                 target.add(cleanedName);
             }
@@ -445,8 +449,11 @@ async function handlePromptReady(eventData) {
                 const processed = clean(typeof context.substituteParams === 'function' ? context.substituteParams(value) : value);
                 if (processed.trim() === '') {
                     msg.content = msg.content.replace(new RegExp(`^[ \\t]*${escapeRegex(tag)}[ \\t]*\\r?\\n?`, 'gm'), '');
+                    log(`Tag ${tag} removed — module inactive (no content).`);
+                } else {
+                    msg.content = msg.content.replace(new RegExp(escapeRegex(tag), 'g'), processed);
+                    log(`Replaced ${tag} in prompt (${processed.length} chars).`);
                 }
-                msg.content = msg.content.replace(new RegExp(escapeRegex(tag), 'g'), processed);
                 replacements++;
                 log(`Replaced ${tag} in prompt (${processed.length} chars).`);
             }
@@ -685,6 +692,7 @@ async function initExtension() {
 
         loadSettingsIntoUi();
         ensureAllMacrosRegistered();
+        log(`Library: ${getSettings().library.map(m => `"${m.name}" -> ${m.variable || '(no variable)'}${m.enabled ? '' : ' (DISABLED)'}`).join('; ') || '(empty)'}`);
         log('Extension ready.');
     } catch (error) {
         console.error('[LE Eternalism] Failed to initialize UI:', error);
