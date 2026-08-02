@@ -604,13 +604,8 @@ async function togglePostProcessingState(messageId) {
     log(showOriginal ? 'Post-processing reverted to original.' : 'Post-processing re-applied.');
 }
 
-let placeholderSwipeIndex = -1;
-
-function handleGenerationStarted(type, params, dryRun) {
-    if (dryRun || !getSettings().masterEnabled) {
-        return;
-    }
-    if (type !== 'swipe' && type !== 'regenerate') {
+function handleGenerationStopped() {
+    if (!getSettings().masterEnabled) {
         return;
     }
     const context = SillyTavern.getContext();
@@ -618,39 +613,18 @@ function handleGenerationStarted(type, params, dryRun) {
     if (!message || message.is_user || message.is_system || !Array.isArray(message.swipes)) {
         return;
     }
-    placeholderSwipeIndex = message.swipes.length;
-    message.swipes.push('');
-    message.swipe_id = placeholderSwipeIndex;
-    message.mes = '';
-}
-
-function cleanupPlaceholderSwipe() {
-    if (placeholderSwipeIndex < 0) {
-        return;
+    const swipeId = message.swipe_id ?? 0;
+    // Materialize the current swipe slot so the swipe flow shows this (empty/partial)
+    // content instead of reverting to the previous swipe's text.
+    if (typeof message.swipes[swipeId] !== 'string') {
+        message.swipes[swipeId] = typeof message.mes === 'string' ? message.mes : '';
     }
-    const context = SillyTavern.getContext();
-    const message = context.chat[context.chat.length - 1];
-    const index = placeholderSwipeIndex;
-    placeholderSwipeIndex = -1;
-    if (!message || !Array.isArray(message.swipes) || index >= message.swipes.length) {
-        return;
+    if (!Array.isArray(message.swipe_info)) {
+        message.swipe_info = [];
     }
-    // Generation stopped (no new swipe entries) — keep the empty slot so the body stays empty.
-    if (message.swipes.length <= index + 1) {
-        return;
+    if (!message.swipe_info[swipeId] || typeof message.swipe_info[swipeId] !== 'object') {
+        message.swipe_info[swipeId] = { extra: structuredClone(message.extra ?? {}) };
     }
-    message.swipes.splice(index, 1);
-    if (Array.isArray(message.swipe_info)) {
-        message.swipe_info.splice(index, 1);
-    }
-    if (message.swipe_id >= index) {
-        message.swipe_id = Math.max(index, message.swipe_id - 1);
-    }
-    if (message.swipe_id > message.swipes.length - 1) {
-        message.swipe_id = message.swipes.length - 1;
-    }
-    message.mes = message.swipes[message.swipe_id] ?? '';
-    log('Removed placeholder swipe after generation completed.');
 }
 
 function handleCharacterMessageRendered(messageId) {
@@ -1154,11 +1128,9 @@ async function initExtension() {
         document.getElementById('le_eternalism_import_file').addEventListener('change', importSettings);
 
         context.eventSource.on(context.eventTypes.GENERATION_AFTER_COMMANDS, handleGenerationStart);
-        context.eventSource.on(context.eventTypes.GENERATION_STARTED, handleGenerationStarted);
-        context.eventSource.on(context.eventTypes.GENERATION_STOPPED, cleanupPlaceholderSwipe);
+        context.eventSource.on(context.eventTypes.GENERATION_STOPPED, handleGenerationStopped);
         context.eventSource.on(context.eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
         context.eventSource.on(context.eventTypes.GENERATE_AFTER_COMBINE_PROMPTS, handleCombinePrompts);
-        context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, cleanupPlaceholderSwipe);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, cleanupStaleRevertButtons);
 
