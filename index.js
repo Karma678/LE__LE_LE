@@ -758,89 +758,107 @@ function handleCombinePrompts(eventData) {
     log(`Stage 2 prompt captured (${lastStage2Prompt.length} chars).`);
 }
 
-function renderLibraryList() {
+function renderLibrarySelector() {
     const settings = getSettings();
-    const container = document.getElementById('le_eternalism_library_list');
-    if (!container) {
+    const select = document.getElementById('le_eternalism_library_select');
+    if (!select) {
         return;
     }
-    container.innerHTML = '';
+    select.innerHTML = '';
     settings.library.forEach((prompt, index) => {
-        const item = document.createElement('div');
-        item.classList.add('le_eternalism_lib_item');
-
-        const header = document.createElement('div');
-        header.classList.add('flex-container', 'alignItemsCenter', 'flexGap5');
-
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.classList.add('text_pole', 'flex1');
-        nameInput.placeholder = 'Prompt name (used in [include: ...] / [exclude: ...])';
-        nameInput.value = prompt.name;
-
-        const variableInput = document.createElement('input');
-        variableInput.type = 'text';
-        variableInput.classList.add('text_pole');
-        variableInput.placeholder = 'variable name (e.g. violence — no brackets)';
-        variableInput.value = prompt.variable ?? '';
-        variableInput.title = 'Just the variable name (e.g. violence). The extension builds the [[le_violence]] tag from it and swaps it in the preset prompt when the module is active. Brackets are stripped automatically if you paste them.';
-
-        const triggerInput = document.createElement('input');
-        triggerInput.type = 'text';
-        triggerInput.classList.add('text_pole');
-        triggerInput.placeholder = 'trigger command (e.g. [include: Combat Rules])';
-        triggerInput.value = prompt.trigger ?? '';
-        triggerInput.title = 'If this command appears in the Stage 1 analysis output, the module activates (one command per line; case-insensitive). If empty, the module follows the include/exclude directives instead.';
-
-        const enabledLabel = document.createElement('label');
-        enabledLabel.classList.add('checkbox_label');
-        const enabledInput = document.createElement('input');
-        enabledInput.type = 'checkbox';
-        enabledInput.checked = !!prompt.enabled;
-        enabledLabel.append(enabledInput, document.createTextNode('On'));
-
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.classList.add('menu_button');
-        removeButton.textContent = 'Remove';
-        removeButton.addEventListener('click', () => {
-            settings.library.splice(index, 1);
-            renderLibraryList();
-            saveSettings();
-        });
-
-        const promptArea = document.createElement('textarea');
-        promptArea.classList.add('text_pole');
-        promptArea.rows = 3;
-        promptArea.value = prompt.prompt;
-        promptArea.placeholder = 'Prompt module text...';
-
-        nameInput.addEventListener('input', () => {
-            prompt.name = clean(nameInput.value);
-            saveSettings();
-        });
-        variableInput.addEventListener('input', () => {
-            prompt.variable = normalizeVariable(variableInput.value);
-            variableInput.value = prompt.variable;
-            saveSettings();
-        });
-        triggerInput.addEventListener('input', () => {
-            prompt.trigger = clean(triggerInput.value);
-            saveSettings();
-        });
-        enabledInput.addEventListener('change', () => {
-            prompt.enabled = enabledInput.checked;
-            saveSettings();
-        });
-        promptArea.addEventListener('input', () => {
-            prompt.prompt = clean(promptArea.value);
-            saveSettings();
-        });
-
-        header.append(nameInput, variableInput, triggerInput, enabledLabel, removeButton);
-        item.append(header, promptArea);
-        container.appendChild(item);
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = (prompt.name && prompt.name.trim()) ? prompt.name : `(unnamed ${index + 1})`;
+        select.appendChild(option);
     });
+    if (settings.library.length > 0) {
+        select.selectedIndex = settings.library.length - 1;
+    }
+}
+
+async function openLibraryEditor(index) {
+    const context = SillyTavern.getContext();
+    const settings = getSettings();
+    const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
+    if (index < 0 || index >= settings.library.length) {
+        return;
+    }
+    const prompt = settings.library[index];
+    const wasEmpty = !(prompt.name || '').trim() && !(prompt.prompt || '').trim();
+
+    const $content = $(`
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <label class="le_eternalism_hint">Name (used in [include: ...] / [exclude: ...] and triggers)</label>
+            <input type="text" id="le_eternalism_lib_name" class="text_pole" placeholder="Prompt name">
+            <div class="flex-container alignItemsCenter flexGap5">
+                <input type="text" id="le_eternalism_lib_variable" class="text_pole flex1" placeholder="variable (e.g. violence)">
+                <input type="text" id="le_eternalism_lib_trigger" class="text_pole flex1" placeholder="trigger (e.g. [include: Combat Rules])">
+            </div>
+            <label class="checkbox_label"><input type="checkbox" id="le_eternalism_lib_enabled"> <span>Enabled</span></label>
+            <label class="le_eternalism_hint">Prompt module text</label>
+            <textarea id="le_eternalism_lib_prompt" class="text_pole" style="width:100%; min-height:200px; font-family:monospace; resize:vertical;"></textarea>
+        </div>
+    `);
+    const nameInput = $content.find('#le_eternalism_lib_name');
+    const variableInput = $content.find('#le_eternalism_lib_variable');
+    const triggerInput = $content.find('#le_eternalism_lib_trigger');
+    const enabledInput = $content.find('#le_eternalism_lib_enabled');
+    const promptArea = $content.find('#le_eternalism_lib_prompt');
+
+    nameInput.val(prompt.name ?? '');
+    variableInput.val(prompt.variable ?? '');
+    triggerInput.val(prompt.trigger ?? '');
+    enabledInput.prop('checked', !!prompt.enabled);
+    promptArea.val(prompt.prompt ?? '');
+
+    nameInput.on('input', () => {
+        prompt.name = clean(nameInput.val());
+        saveSettings();
+    });
+    variableInput.on('input', () => {
+        prompt.variable = normalizeVariable(variableInput.val());
+        variableInput.val(prompt.variable);
+        saveSettings();
+    });
+    triggerInput.on('input', () => {
+        prompt.trigger = clean(triggerInput.val());
+        saveSettings();
+    });
+    enabledInput.on('change', () => {
+        prompt.enabled = enabledInput.prop('checked');
+        saveSettings();
+    });
+    promptArea.on('input', () => {
+        prompt.prompt = clean(promptArea.val());
+        saveSettings();
+    });
+
+    const popup = new Popup($content, POPUP_TYPE.TEXT, 'Edit prompt module', {
+        okButton: 'Close',
+        wide: true,
+        large: true,
+        allowVerticalScrolling: true,
+        customButtons: [
+            { text: 'Delete', icon: 'fa-solid fa-trash', result: POPUP_RESULT.CUSTOM1 },
+        ],
+    });
+    const result = await popup.show();
+
+    if (result === POPUP_RESULT.CUSTOM1) {
+        settings.library.splice(index, 1);
+        saveSettings();
+        renderLibrarySelector();
+        log('Prompt module deleted.');
+        return;
+    }
+
+    const stillEmpty = !(prompt.name || '').trim() && !(prompt.prompt || '').trim();
+    if (wasEmpty && stillEmpty) {
+        settings.library.splice(index, 1);
+        saveSettings();
+        log('Empty prompt module removed (not named or edited).');
+    }
+    renderLibrarySelector();
 }
 
 function updateStage1Preview() {
@@ -898,7 +916,7 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_stage1_tokens').value = settings.stage1HistoryDepth;
     loadApiBlock('s1', settings.stage1Api);
     loadApiBlock('s3', settings.stage3Api);
-    renderLibraryList();
+    renderLibrarySelector();
     updateStage1Preview();
 }
 
@@ -940,10 +958,25 @@ async function initExtension() {
         document.getElementById('le_eternalism_stage1_tokens').addEventListener('input', collectSettingsFromUi);
         bindApiBlock('s1');
         bindApiBlock('s3');
-        document.getElementById('le_eternalism_add_prompt').addEventListener('click', () => {
-            getSettings().library.push({ name: '', variable: '', trigger: '', prompt: '', enabled: true });
-            renderLibraryList();
+        document.getElementById('le_eternalism_library_select').addEventListener('change', () => {
+            const select = document.getElementById('le_eternalism_library_select');
+            const index = Number(select.value);
+            if (Number.isFinite(index) && index >= 0) {
+                openLibraryEditor(index).catch(error => {
+                    console.error('[LE Eternalism] Library editor error:', error);
+                });
+            }
+        });
+        document.getElementById('le_eternalism_lib_add').addEventListener('click', () => {
+            const settings = getSettings();
+            settings.library.push({ name: '', variable: '', trigger: '', prompt: '', enabled: true });
             saveSettings();
+            renderLibrarySelector();
+            const index = settings.library.length - 1;
+            document.getElementById('le_eternalism_library_select').selectedIndex = index;
+            openLibraryEditor(index).catch(error => {
+                console.error('[LE Eternalism] Library editor error:', error);
+            });
         });
         document.getElementById('le_eternalism_save').addEventListener('click', () => {
             collectSettingsFromUi();

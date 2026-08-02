@@ -40,7 +40,7 @@ All settings are in **Settings → Extensions → "LE_ETERNALISM"**:
 - **Stage 1 history depth** — how many of the most recent chat messages are sent to the analyzer (0 = unlimited).
 - **Stage 1 / Stage 3 — use a different API/model** — each stage can run on its own Chat Completion backend (base URL, API key, model, max tokens, temperature) via SillyTavern's own backend proxy (`ChatCompletionService`). Leave unchecked to use the main API.
 - **Stage 3 post-process prompt** — used only when post-processing is enabled.
-- **Prompt library** — named modules (name + preset variable + text + enabled) that Stage 1 can include or exclude.
+- **Prompt library** — sits inside the Stage 1 section: a dropdown lists all modules (name + variable + trigger + text + enabled); select one to edit it in a window, "+ Add" creates a new one. A new module that is closed without a name or content is removed automatically.
 - **Save / Export / Import settings** — Save persists immediately; Export downloads a JSON file with the API keys and base URLs removed; Import restores from such a file while keeping your current API keys and base URLs.
 
 ## Notes

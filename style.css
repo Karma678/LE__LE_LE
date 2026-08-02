@@ -55,6 +55,30 @@
     resize: vertical;
 }
 
+.le-eternalism-settings .le_eternalism_section {
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    padding: 8px;
+    margin-top: 10px;
+}
+
+.le-eternalism-settings .le_eternalism_section_header {
+    font-weight: bold;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin: -8px -8px 8px -8px;
+}
+
+.le-eternalism-settings .le_eternalism_section_stage1 .le_eternalism_section_header {
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+}
+
+.le-eternalism-settings .le_eternalism_section_stage3 .le_eternalism_section_header {
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+}
+
 .le-eternalism-settings .le_eternalism_api_block {
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 8px;
