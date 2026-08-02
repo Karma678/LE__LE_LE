@@ -399,6 +399,20 @@ async function postProcessMessage(messageId, type) {
         log(`Post-processing message ${messageId}...`);
         const messages = stage3SystemPrompts.map(p => ({ role: 'system', content: p }));
         messages.push({ role: 'user', content: clean(message.mes) });
+
+        if (settings.debugMode) {
+            const applied = await previewStage2Messages(messages, 'Stage 3 prompt preview');
+            if (applied === null) {
+                log('Stage 3 preview cancelled — keeping the original message.');
+                return;
+            }
+            if (applied === false) {
+                toastr.warning('LE Eternalism: edits not applied (message structure changed). Sending the original prompt.');
+            } else {
+                log('Stage 3 preview confirmed.');
+            }
+        }
+
         let formatted;
         if (isCustomApiConfigured(settings.stage3Api)) {
             formatted = await customChatCompletion(settings.stage3Api, messages);
@@ -489,7 +503,7 @@ function deserializeMessages(text, messages) {
     return true;
 }
 
-async function previewStage2Messages(messages) {
+async function previewStage2Messages(messages, title = 'Stage 2 prompt preview') {
     const context = SillyTavern.getContext();
     const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
     const initialText = serializeMessages(messages);
@@ -505,7 +519,7 @@ async function previewStage2Messages(messages) {
         liveText = $(this).val();
         dirty = true;
     });
-    const popup = new Popup($content, POPUP_TYPE.CONFIRM, 'Stage 2 prompt preview', {
+    const popup = new Popup($content, POPUP_TYPE.CONFIRM, title, {
         okButton: 'Send prompt',
         cancelButton: 'Cancel generation',
         wide: true,
