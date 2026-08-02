@@ -71,7 +71,7 @@ function ensureMacroRegistered(variable) {
 
 function ensureAllMacrosRegistered() {
     for (const module of getSettings().library) {
-        const variable = (module.variable ?? '').trim();
+        const variable = normalizeVariable(module.variable);
         if (variable) {
             ensureMacroRegistered(variable);
         }
@@ -114,6 +114,13 @@ function escapeHtml(text) {
 
 function escapeRegex(text) {
     return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeVariable(value) {
+    return String(value ?? '')
+        .trim()
+        .replace(/^\[\[|\]\]$/g, '')
+        .replace(/^\{\{|\}\}$/g, '');
 }
 
 function setStatus(text) {
@@ -203,7 +210,7 @@ function applyVariables(selected) {
     const settings = getSettings();
     const selectedNames = new Set(selected.map(p => p.name.trim().toLowerCase()));
     for (const module of settings.library) {
-        const variable = (module.variable ?? '').trim();
+        const variable = normalizeVariable(module.variable);
         if (!variable) {
             continue;
         }
@@ -371,7 +378,7 @@ function handleGenerationStart(type, options, dryRun) {
 function applyPromptReplacements(content) {
     let result = content;
     for (const module of getSettings().library) {
-        const variable = (module.variable ?? '').trim();
+        const variable = normalizeVariable(module.variable);
         if (!variable) {
             continue;
         }
@@ -454,7 +461,7 @@ async function handlePromptReady(eventData) {
         return;
     }
     const context = SillyTavern.getContext();
-    const modules = getSettings().library.filter(m => (m.variable ?? '').trim());
+    const modules = getSettings().library.filter(m => normalizeVariable(m.variable));
     if (modules.length === 0) {
         return;
     }
@@ -464,7 +471,7 @@ async function handlePromptReady(eventData) {
             return;
         }
         for (const module of modules) {
-            const variable = module.variable.trim();
+            const variable = normalizeVariable(module.variable);
             const lowerContent = msg.content.toLowerCase();
             let found = false;
             for (const tag of [`[[le_${variable}]]`, `{{le_${variable}}}`]) {
@@ -584,9 +591,9 @@ function renderLibraryList() {
         const variableInput = document.createElement('input');
         variableInput.type = 'text';
         variableInput.classList.add('text_pole');
-        variableInput.placeholder = 'preset variable (e.g. violence)';
+        variableInput.placeholder = 'variable name (e.g. violence — no brackets)';
         variableInput.value = prompt.variable ?? '';
-        variableInput.title = 'When this module is included, its text is written to this chat variable, so {{getvar::name}} in the preset resolves to it. Cleared when not included.';
+        variableInput.title = 'Just the variable name (e.g. violence). The extension builds the [[le_violence]] tag from it and swaps it in the preset prompt when the module is active. Brackets are stripped automatically if you paste them.';
 
         const enabledLabel = document.createElement('label');
         enabledLabel.classList.add('checkbox_label');
@@ -616,7 +623,8 @@ function renderLibraryList() {
             saveSettings();
         });
         variableInput.addEventListener('input', () => {
-            prompt.variable = clean(variableInput.value);
+            prompt.variable = normalizeVariable(variableInput.value);
+            variableInput.value = prompt.variable;
             saveSettings();
         });
         enabledInput.addEventListener('change', () => {
