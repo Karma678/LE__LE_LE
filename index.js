@@ -4,7 +4,6 @@ const defaultSettings = {
     enabled: false,
     debugMode: false,
     postProcessEnabled: false,
-    showStage2Prompt: false,
     previewStage2Prompt: false,
     analysisPrompt1: [
         'You are an excellent analyst of roleplay scenes. Your task is to think things through and respond only with commands that match the tone and spirit of the scene. In your answer you write only commands and nothing else.',
@@ -268,6 +267,8 @@ async function runAnalysisAndApply(reason) {
                 log('Aborted by user at Stage 1 debug checkpoint.');
                 return false;
             }
+            previewArmed = true;
+            log('Stage 1 accepted — Stage 2 preview will be shown before sending.');
             handle = context.loader.show({ message: 'Stage 1: analyzing scene...' });
         }
 
@@ -500,9 +501,6 @@ function handleCombinePrompts(eventData) {
         lastStage2Prompt = String(prompt ?? '');
     }
     log(`Stage 2 prompt captured (${lastStage2Prompt.length} chars).`);
-    if (getSettings().showStage2Prompt) {
-        showStage2Prompt();
-    }
 }
 
 async function showStage2Prompt() {
@@ -623,7 +621,6 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_enabled').checked = !!settings.enabled;
     document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
     document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
-    document.getElementById('le_eternalism_show_prompt').checked = !!settings.showStage2Prompt;
     document.getElementById('le_eternalism_preview_prompt').checked = !!settings.previewStage2Prompt;
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
@@ -638,7 +635,6 @@ function collectSettingsFromUi() {
     settings.enabled = document.getElementById('le_eternalism_enabled').checked;
     settings.debugMode = document.getElementById('le_eternalism_debug').checked;
     settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
-    settings.showStage2Prompt = document.getElementById('le_eternalism_show_prompt').checked;
     settings.previewStage2Prompt = document.getElementById('le_eternalism_preview_prompt').checked;
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
@@ -657,7 +653,6 @@ async function initExtension() {
         document.getElementById('le_eternalism_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_post_enabled').addEventListener('change', collectSettingsFromUi);
-        document.getElementById('le_eternalism_show_prompt').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_preview_prompt').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_analysis1').addEventListener('input', () => {
             collectSettingsFromUi();
