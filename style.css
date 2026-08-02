@@ -118,6 +118,14 @@
     color: #ff4d80;
 }
 
+.le-eternalism-settings .le_eternalism_board_row {
+    background: linear-gradient(180deg, #57040c 0%, #3d0208 100%);
+    border: 1px solid rgba(216, 4, 45, 0.5);
+    border-radius: 8px;
+    padding: 8px;
+    margin-top: 8px;
+}
+
 .le-eternalism-settings .le_eternalism_api_block {
     border: 1px solid rgba(216, 27, 96, 0.35);
     border-radius: 8px;
