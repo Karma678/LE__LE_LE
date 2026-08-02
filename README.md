@@ -24,7 +24,7 @@ Alternatively, copy this whole folder into `SillyTavern/public/scripts/extension
 
 **Stage 2 — Generation.** SillyTavern generates normally with your preset (the preset IS Stage 2; the extension does not generate or replace the reply).
 
-**Stage 3 — Post-process (optional, off by default).** If enabled, the generated reply is sent to the formatting AI and the formatted text replaces it in chat.
+**Stage 3 — Post-process (on by default).** After the AI reply is generated, the extension takes the very last AI message only, sends it together with the Stage 3 prompt, and replaces the message in chat with the formatted result (applies to normal/continue/swipe/regenerate replies).
 
 If no include/exclude directives are found, all enabled library modules are used. `[include: all]` explicitly selects all enabled modules. Excludes always win over includes.
 
@@ -35,7 +35,7 @@ All settings are in **Settings → Extensions → "LE_ETERNALISM"**:
 - **Auto-run Stage 1 analysis when a message is sent** — runs the analysis (and variable application) before the preset generates; applies to **Normal**, **Continue**, **Swipe**, and **Regenerate** generations.
 - **Debug mode** — pauses after Stage 1 and shows the analysis output plus the parsed directives in a popup; after you accept it, the Stage 2 prompt preview opens automatically before the request is sent (or abort).
 - **View last Stage 2 prompt** — displays the fully combined prompt from the last generation (macros resolved).
-- **Post-process the generated reply (Stage 3 recheck)** — off by default; formats the generated reply with the Stage 3 prompt.
+- **Post-process the generated reply (Stage 3 recheck)** — on by default; the very last AI message is sent to the Stage 3 prompt and the formatted result replaces it in chat.
 - **Stage 1 — System prompt 1** (analysis commands) and **Stage 1 — System prompt 2** (thinking checklist).
 - **Stage 1 history depth** — how many of the most recent chat messages are sent to the analyzer (0 = unlimited).
 - **Stage 1 / Stage 3 — use a different API/model** — each stage can run on its own Chat Completion backend (base URL, API key, model, max tokens, temperature) via SillyTavern's own backend proxy (`ChatCompletionService`). Leave unchecked to use the main API.

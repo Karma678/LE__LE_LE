@@ -3,7 +3,7 @@ const MODULE_NAME = 'le_eternalism';
 const defaultSettings = {
     enabled: false,
     debugMode: false,
-    postProcessEnabled: false,
+    postProcessEnabled: true,
     analysisPrompt1: [
         'You are an excellent analyst of roleplay scenes. Your task is to think things through and respond only with commands that match the tone and spirit of the scene. In your answer you write only commands and nothing else.',
         '',
@@ -359,10 +359,10 @@ async function postProcessMessage(messageId, type) {
     if (!settings.postProcessEnabled) {
         return;
     }
-    if (type !== 'normal') {
+    if (!clean(settings.postProcessPrompt).trim()) {
         return;
     }
-    if (!clean(settings.postProcessPrompt).trim()) {
+    if (messageId !== context.chat.length - 1) {
         return;
     }
 
