@@ -27,6 +27,7 @@ const defaultSettings = {
         'Rewrite the draft reply according to these rules: proper markdown, paragraph breaks, no code blocks, no meta commentary, no stage labels.',
         'Output ONLY the final formatted reply text.',
     ].join('\n'),
+    stage1ContextTokens: 6000,
     library: [],
 };
 
@@ -105,6 +106,29 @@ function buildStage2Prompt(settings, selected) {
     return parts.join('\n\n');
 }
 
+async function buildStage1History() {
+    const context = SillyTavern.getContext();
+    const settings = getSettings();
+    const budget = Number(settings.stage1ContextTokens) || 0;
+    const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
+    const format = m => `${m.name ?? (m.is_user ? context.name1 : context.name2)}: ${m.mes}`;
+    if (budget <= 0) {
+        return messages.map(format).join('\n');
+    }
+    const chunks = [];
+    let used = 0;
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const line = format(messages[i]);
+        const tokens = await context.getTokenCountAsync(line);
+        if (chunks.length > 0 && used + tokens > budget) {
+            break;
+        }
+        chunks.unshift(line);
+        used += tokens;
+    }
+    return chunks.join('\n');
+}
+
 async function postAsCharacter(text) {
     const context = SillyTavern.getContext();
     const name = context.characters[context.characterId]?.name
@@ -146,9 +170,9 @@ async function runPipeline(reason) {
     const handle = context.loader.show({ message: 'Running RPG pipeline...' });
     log(`Pipeline started (${reason}).`);
     try {
-        const analysis = await context.generateQuietPrompt({
-            quietPrompt: stage1Prompt,
-            skipWIAN: true,
+        const history = await buildStage1History();
+        const analysis = await context.generateRaw({
+            prompt: `${history}\n\n${stage1Prompt}`,
         });
         const { includes, excludes } = parseAnalysisResult(analysis);
         const selected = selectIncludedPrompts(includes, excludes);
@@ -288,6 +312,7 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
     document.getElementById('le_eternalism_main').value = settings.mainPrompt;
     document.getElementById('le_eternalism_post').value = settings.postProcessPrompt;
+    document.getElementById('le_eternalism_stage1_tokens').value = settings.stage1ContextTokens;
     renderLibraryList();
     updateStage1Preview();
 }
@@ -300,6 +325,7 @@ function collectSettingsFromUi() {
     settings.analysisPrompt2 = document.getElementById('le_eternalism_analysis2').value;
     settings.mainPrompt = document.getElementById('le_eternalism_main').value;
     settings.postProcessPrompt = document.getElementById('le_eternalism_post').value;
+    settings.stage1ContextTokens = Number(document.getElementById('le_eternalism_stage1_tokens').value) || 0;
     saveSettings();
 }
 
@@ -321,6 +347,7 @@ async function initExtension() {
         });
         document.getElementById('le_eternalism_main').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_post').addEventListener('input', collectSettingsFromUi);
+        document.getElementById('le_eternalism_stage1_tokens').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_add_prompt').addEventListener('click', () => {
             getSettings().library.push({ name: '', prompt: '', enabled: true });
             renderLibraryList();
