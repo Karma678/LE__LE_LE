@@ -54,7 +54,8 @@ function ensureMacroRegistered(variable) {
         console.warn(`[LE Eternalism] Could not register macro ${macroName} (legacy engine):`, error);
     }
     registeredMacros.add(macroName);
-    log(`Registered macro {{${macroName}}}.`);
+    const verified = !!context.macros?.registry?.hasMacro(macroName);
+    log(`Registered macro {{${macroName}}} (registry verified: ${verified}).`);
 }
 
 function ensureAllMacrosRegistered() {
@@ -329,14 +330,41 @@ function handleGenerationStart(type, options, dryRun) {
     });
 }
 
+function applyPromptReplacements(content) {
+    let result = content;
+    for (const module of getSettings().library) {
+        const variable = (module.variable ?? '').trim();
+        if (!variable) {
+            continue;
+        }
+        const macroName = `{{le_${variable}}}`;
+        if (!result.includes(macroName)) {
+            continue;
+        }
+        const escaped = macroName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escaped, 'gi');
+        const count = (result.match(regex) || []).length;
+        result = result.replace(regex, activeModuleVariables.get(variable) ?? '');
+        log(`Replaced ${macroName} in Stage 2 prompt (${count} occurrence(s)).`);
+    }
+    return result;
+}
+
 function handleCombinePrompts(eventData) {
     if (eventData?.dryRun) {
         return;
     }
     const prompt = eventData?.prompt;
     if (typeof prompt === 'string') {
-        lastStage2Prompt = prompt;
+        const replaced = applyPromptReplacements(prompt);
+        eventData.prompt = replaced;
+        lastStage2Prompt = replaced;
     } else if (Array.isArray(prompt)) {
+        for (const m of prompt) {
+            if (m && typeof m.content === 'string') {
+                m.content = applyPromptReplacements(m.content);
+            }
+        }
         lastStage2Prompt = prompt.map(m => {
             const role = m?.role ?? 'message';
             const name = m?.name ? ` (${m.name})` : '';
