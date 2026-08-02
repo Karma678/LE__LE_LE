@@ -36,17 +36,23 @@ function ensureMacroRegistered(variable) {
     if (registeredMacros.has(macroName)) {
         return;
     }
+    const handler = () => activeModuleVariables.get(variable) ?? '';
+    const context = SillyTavern.getContext();
     try {
-        const { macros } = SillyTavern.getContext();
-        macros.register(macroName, {
+        context.macros.register(macroName, {
             description: `LE Eternalism: returns the "${variable}" prompt module content when that module is active, otherwise empty.`,
-            handler: () => activeModuleVariables.get(variable) ?? '',
+            handler,
         });
-        registeredMacros.add(macroName);
-        log(`Registered macro {{${macroName}}}.`);
     } catch (error) {
-        console.warn(`[LE Eternalism] Could not register macro ${macroName}:`, error);
+        console.warn(`[LE Eternalism] Could not register macro ${macroName} (new engine):`, error);
     }
+    try {
+        context.registerMacro(macroName, handler);
+    } catch (error) {
+        console.warn(`[LE Eternalism] Could not register macro ${macroName} (legacy engine):`, error);
+    }
+    registeredMacros.add(macroName);
+    log(`Registered macro {{${macroName}}}.`);
 }
 
 function ensureAllMacrosRegistered() {
