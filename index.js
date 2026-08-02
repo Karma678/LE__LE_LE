@@ -23,7 +23,7 @@ const defaultSettings = {
         'Rewrite the draft reply according to these rules: proper markdown, paragraph breaks, no code blocks, no meta commentary, no stage labels.',
         'Output ONLY the final formatted reply text.',
     ].join('\n'),
-    stage1ContextTokens: 6000,
+    stage1ContextTokens: 16000,
     library: [],
 };
 
@@ -194,25 +194,27 @@ async function buildStage1History() {
     const context = SillyTavern.getContext();
     const settings = getSettings();
     const budget = Number(settings.stage1ContextTokens) || 0;
+    const charBudget = budget * 4;
     const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
     const toMessage = m => ({
         role: m.is_user ? 'user' : 'assistant',
         content: clean(`${m.name || (m.is_user ? context.name1 : context.name2)}: ${m.mes}`),
     });
-    if (budget <= 0) {
+    if (charBudget <= 0) {
         return messages.map(toMessage);
     }
     const chunks = [];
     let used = 0;
     for (let i = messages.length - 1; i >= 0; i--) {
         const msg = toMessage(messages[i]);
-        const tokens = await context.getTokenCountAsync(msg.content);
-        if (chunks.length > 0 && used + tokens > budget) {
+        const size = msg.content.length;
+        if (chunks.length > 0 && used + size > charBudget) {
             break;
         }
         chunks.unshift(msg);
-        used += tokens;
+        used += size;
     }
+    log(`Stage 1 history: ${chunks.length} message(s), ${used} chars (budget ${budget} tokens approx).`);
     return chunks;
 }
 
