@@ -180,6 +180,10 @@
     box-shadow: 0 0 12px rgba(214, 31, 60, 0.35);
 }
 
+.le-eternalism-settings .le_eternalism_actions_row {
+    padding-left: 4px;
+}
+
 /* ---------- API blocks ---------- */
 .le-eternalism-settings .le_eternalism_api_block {
     background: rgba(23, 4, 6, 0.55);
