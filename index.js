@@ -33,6 +33,16 @@ const activeModuleVariables = new Map();
 const registeredMacros = new Set();
 let lastStage2Prompt = '';
 let previewArmed = false;
+let rawRequestInFlight = false;
+
+async function rawGenerate(params) {
+    rawRequestInFlight = true;
+    try {
+        return await SillyTavern.getContext().generateRaw(params);
+    } finally {
+        rawRequestInFlight = false;
+    }
+}
 
 function ensureMacroRegistered(variable) {
     const macroName = `le_${variable}`;
@@ -241,7 +251,7 @@ async function runAnalysisAndApply(reason) {
             role: 'user',
             content: 'Analyze the scene above. Reply with your commands only.',
         });
-        const analysis = await context.generateRaw({
+        const analysis = await rawGenerate({
             prompt: stage1Messages,
         });
 
@@ -313,7 +323,7 @@ async function postProcessMessage(messageId, type) {
 
     try {
         log(`Post-processing message ${messageId}...`);
-        const formatted = await context.generateRaw({
+        const formatted = await rawGenerate({
             systemPrompt: clean(settings.postProcessPrompt),
             prompt: clean(message.mes),
         });
@@ -468,7 +478,7 @@ async function handlePromptReady(eventData) {
         log(`Prompt injection done (${replacements} replacement(s)).`);
     }
 
-    if (previewArmed) {
+    if (previewArmed && !rawRequestInFlight) {
         previewArmed = false;
         const applied = await previewStage2Messages(messages);
         if (applied === null) {
