@@ -501,8 +501,9 @@ async function postProcessMessage(messageId, type) {
     const abortController = new AbortController();
     try {
         log(`Post-processing message ${messageId}...`);
+        const originalText = clean(message.mes);
         const messages = stage3SystemPrompts.map(p => ({ role: 'system', content: p }));
-        messages.push({ role: 'user', content: clean(message.mes) });
+        messages.push({ role: 'user', content: originalText });
 
         if (settings.debugMode) {
             const applied = await previewStage2Messages(messages, 'Stage 3 prompt preview');
@@ -548,6 +549,11 @@ async function postProcessMessage(messageId, type) {
             }
             throw error;
         }
+        if (!message.extra) {
+            message.extra = {};
+        }
+        message.extra.le_eternalism_original = originalText;
+        message.extra.le_eternalism_processed = formatted;
         message.mes = formatted;
         const swipeId = message.swipe_id ?? 0;
         if (Array.isArray(message.swipes) && message.swipes[swipeId] !== undefined) {
@@ -555,6 +561,7 @@ async function postProcessMessage(messageId, type) {
         }
         await context.updateMessageBlock(messageId, message);
         await context.saveChat();
+        handleCharacterMessageRendered(messageId);
         log('Message formatted.');
     } catch (error) {
         toastr.error(`LE Eternalism post-process failed: ${error.message}`);
@@ -564,6 +571,52 @@ async function postProcessMessage(messageId, type) {
             await handle.hide();
         }
     }
+}
+
+async function togglePostProcessingState(messageId) {
+    const context = SillyTavern.getContext();
+    const message = context.chat[messageId];
+    const original = message?.extra?.le_eternalism_original;
+    const processed = message?.extra?.le_eternalism_processed;
+    if (typeof original !== 'string' || typeof processed !== 'string') {
+        return;
+    }
+    const showOriginal = message.mes === processed;
+    message.mes = showOriginal ? original : processed;
+    const swipeId = message.swipe_id ?? 0;
+    if (Array.isArray(message.swipes) && message.swipes[swipeId] !== undefined) {
+        message.swipes[swipeId] = message.mes;
+    }
+    await context.updateMessageBlock(messageId, message);
+    await context.saveChat();
+    log(showOriginal ? 'Post-processing reverted to original.' : 'Post-processing re-applied.');
+}
+
+function handleCharacterMessageRendered(messageId) {
+    if (!getSettings().masterEnabled) {
+        return;
+    }
+    const context = SillyTavern.getContext();
+    const message = context.chat[messageId];
+    if (!message?.extra?.le_eternalism_original || typeof message.extra.le_eternalism_processed !== 'string') {
+        return;
+    }
+    const footer = document.querySelector(`.mes[mesid="${messageId}"] .mes_buttons`);
+    if (!footer || footer.querySelector('.le_eternalism_revert_btn')) {
+        return;
+    }
+    const makeButton = (icon, title) => {
+        const button = document.createElement('div');
+        button.classList.add('mes_button', 'le_eternalism_revert_btn');
+        button.title = title;
+        button.innerHTML = `<i class="fa-solid ${icon}"></i>`;
+        button.addEventListener('click', () => togglePostProcessingState(messageId));
+        return button;
+    };
+    footer.append(
+        makeButton('fa-arrow-left', 'Revert post-processing (show original)'),
+        makeButton('fa-arrow-right', 'Re-apply post-processing'),
+    );
 }
 
 function handleGenerationStart(type, options, dryRun) {
@@ -1011,6 +1064,7 @@ async function initExtension() {
         context.eventSource.on(context.eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
         context.eventSource.on(context.eventTypes.GENERATE_AFTER_COMBINE_PROMPTS, handleCombinePrompts);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
+        context.eventSource.on(context.eventTypes.CHARACTER_MESSAGE_RENDERED, handleCharacterMessageRendered);
 
         loadSettingsIntoUi();
         ensureAllMacrosRegistered();
