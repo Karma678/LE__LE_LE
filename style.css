@@ -55,6 +55,20 @@
     resize: vertical;
 }
 
+.le-eternalism-settings .le_eternalism_api_block {
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    padding: 6px;
+    margin-top: 8px;
+}
+
+.le-eternalism-settings .le_eternalism_api_block input[type="text"],
+.le-eternalism-settings .le_eternalism_api_block input[type="password"],
+.le-eternalism-settings .le_eternalism_api_block input[type="number"] {
+    width: 100%;
+    margin-top: 4px;
+}
+
 .le_eternalism_debug_summary {
     font-size: 13px;
     opacity: 0.85;

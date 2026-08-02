@@ -34,8 +34,40 @@
         <label for="le_eternalism_stage1_tokens">Stage 1 &mdash; history depth (messages, 0 = unlimited)</label>
         <input id="le_eternalism_stage1_tokens" type="number" min="0" step="1">
 
+        <div class="le_eternalism_api_block">
+            <label for="le_eternalism_s1_custom" class="checkbox_label">
+                <input id="le_eternalism_s1_custom" type="checkbox">
+                <span>Stage 1 &mdash; use a different API/model</span>
+            </label>
+            <input id="le_eternalism_s1_url" class="text_pole" placeholder="Base URL, e.g. https://api.deepseek.com/v1">
+            <input id="le_eternalism_s1_key" class="text_pole" type="password" placeholder="API key">
+            <input id="le_eternalism_s1_model" class="text_pole" placeholder="Model, e.g. deepseek-chat">
+            <div class="flex-container alignItemsCenter flexGap5">
+                <label for="le_eternalism_s1_max" class="le_eternalism_hint">Max tokens</label>
+                <input id="le_eternalism_s1_max" class="text_pole" type="number" min="1" step="100" value="2000">
+                <label for="le_eternalism_s1_temp" class="le_eternalism_hint">Temp</label>
+                <input id="le_eternalism_s1_temp" class="text_pole" type="number" min="0" max="2" step="0.1" value="0.7">
+            </div>
+        </div>
+
         <label for="le_eternalism_post">Stage 3 &mdash; post-process / recheck prompt (optional)</label>
         <textarea id="le_eternalism_post" class="text_pole" rows="4" placeholder="Prompt for the formatting AI. Receives only the generated reply. Used when 'Post-process the generated reply' is enabled."></textarea>
+
+        <div class="le_eternalism_api_block">
+            <label for="le_eternalism_s3_custom" class="checkbox_label">
+                <input id="le_eternalism_s3_custom" type="checkbox">
+                <span>Stage 3 &mdash; use a different API/model</span>
+            </label>
+            <input id="le_eternalism_s3_url" class="text_pole" placeholder="Base URL, e.g. https://api.deepseek.com/v1">
+            <input id="le_eternalism_s3_key" class="text_pole" type="password" placeholder="API key">
+            <input id="le_eternalism_s3_model" class="text_pole" placeholder="Model, e.g. deepseek-chat">
+            <div class="flex-container alignItemsCenter flexGap5">
+                <label for="le_eternalism_s3_max" class="le_eternalism_hint">Max tokens</label>
+                <input id="le_eternalism_s3_max" class="text_pole" type="number" min="1" step="100" value="2000">
+                <label for="le_eternalism_s3_temp" class="le_eternalism_hint">Temp</label>
+                <input id="le_eternalism_s3_temp" class="text_pole" type="number" min="0" max="2" step="0.1" value="0.7">
+            </div>
+        </div>
 
         <div class="marginTop5">
             <b>Prompt library</b>

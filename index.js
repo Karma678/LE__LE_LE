@@ -24,6 +24,8 @@ const defaultSettings = {
         'Output ONLY the final formatted reply text.',
     ].join('\n'),
     stage1HistoryDepth: 50,
+    stage1Api: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
+    stage3Api: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
     library: [],
 };
 
@@ -38,6 +40,36 @@ async function rawGenerate(params) {
     rawRequestInFlight = true;
     try {
         return await SillyTavern.getContext().generateRaw(params);
+    } finally {
+        rawRequestInFlight = false;
+    }
+}
+
+function isCustomApiConfigured(config) {
+    return !!(config?.enabled
+        && String(config.baseUrl ?? '').trim()
+        && String(config.model ?? '').trim()
+        && String(config.apiKey ?? '').trim());
+}
+
+async function customChatCompletion(config, messages) {
+    const context = SillyTavern.getContext();
+    const { ChatCompletionService } = context;
+    const baseUrl = String(config.baseUrl ?? '').trim().replace(/\/+$/, '');
+    rawRequestInFlight = true;
+    try {
+        const payload = ChatCompletionService.createRequestData({
+            stream: false,
+            messages,
+            model: String(config.model ?? '').trim(),
+            chat_completion_source: 'openai',
+            max_tokens: Number(config.maxTokens) || 2000,
+            temperature: Number(config.temperature) || 0.7,
+            reverse_proxy: baseUrl,
+            proxy_password: String(config.apiKey ?? '').trim(),
+        });
+        const result = await ChatCompletionService.sendRequest(payload);
+        return result.content;
     } finally {
         rawRequestInFlight = false;
     }
@@ -268,9 +300,11 @@ async function runAnalysisAndApply(reason) {
             role: 'user',
             content: 'Analyze the scene above. Reply with your commands only.',
         });
-        const analysis = await rawGenerate({
-            prompt: stage1Messages,
-        });
+        const analysis = isCustomApiConfigured(settings.stage1Api)
+            ? await customChatCompletion(settings.stage1Api, stage1Messages)
+            : await rawGenerate({
+                prompt: stage1Messages,
+            });
 
         const { includes, excludes } = parseAnalysisResult(analysis);
         const selected = selectIncludedPrompts(includes, excludes, analysis);
@@ -342,10 +376,19 @@ async function postProcessMessage(messageId, type) {
 
     try {
         log(`Post-processing message ${messageId}...`);
-        const formatted = await rawGenerate({
-            systemPrompt: clean(settings.postProcessPrompt),
-            prompt: clean(message.mes),
-        });
+        const promptText = clean(message.mes);
+        let formatted;
+        if (isCustomApiConfigured(settings.stage3Api)) {
+            formatted = await customChatCompletion(settings.stage3Api, [
+                { role: 'system', content: clean(settings.postProcessPrompt) },
+                { role: 'user', content: promptText },
+            ]);
+        } else {
+            formatted = await rawGenerate({
+                systemPrompt: clean(settings.postProcessPrompt),
+                prompt: promptText,
+            });
+        }
         message.mes = formatted;
         const swipeId = message.swipe_id ?? 0;
         if (Array.isArray(message.swipes) && message.swipes[swipeId] !== undefined) {
@@ -666,6 +709,30 @@ function updateStage1Preview() {
     previewEl.textContent = parts.join('\n\n');
 }
 
+function loadApiBlock(prefix, config) {
+    document.getElementById(`le_eternalism_${prefix}_custom`).checked = !!config.enabled;
+    document.getElementById(`le_eternalism_${prefix}_url`).value = config.baseUrl ?? '';
+    document.getElementById(`le_eternalism_${prefix}_key`).value = config.apiKey ?? '';
+    document.getElementById(`le_eternalism_${prefix}_model`).value = config.model ?? '';
+    document.getElementById(`le_eternalism_${prefix}_max`).value = config.maxTokens ?? 2000;
+    document.getElementById(`le_eternalism_${prefix}_temp`).value = config.temperature ?? 0.7;
+}
+
+function collectApiBlock(prefix, config) {
+    config.enabled = document.getElementById(`le_eternalism_${prefix}_custom`).checked;
+    config.baseUrl = clean(document.getElementById(`le_eternalism_${prefix}_url`).value);
+    config.apiKey = clean(document.getElementById(`le_eternalism_${prefix}_key`).value);
+    config.model = clean(document.getElementById(`le_eternalism_${prefix}_model`).value);
+    config.maxTokens = Number(document.getElementById(`le_eternalism_${prefix}_max`).value) || 2000;
+    config.temperature = Number(document.getElementById(`le_eternalism_${prefix}_temp`).value) || 0.7;
+}
+
+function bindApiBlock(prefix) {
+    for (const id of [`${prefix}_custom`, `${prefix}_url`, `${prefix}_key`, `${prefix}_model`, `${prefix}_max`, `${prefix}_temp`]) {
+        document.getElementById(`le_eternalism_${id}`).addEventListener('input', collectSettingsFromUi);
+    }
+}
+
 function loadSettingsIntoUi() {
     const settings = getSettings();
     document.getElementById('le_eternalism_enabled').checked = !!settings.enabled;
@@ -675,6 +742,8 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
     document.getElementById('le_eternalism_post').value = settings.postProcessPrompt;
     document.getElementById('le_eternalism_stage1_tokens').value = settings.stage1HistoryDepth;
+    loadApiBlock('s1', settings.stage1Api);
+    loadApiBlock('s3', settings.stage3Api);
     renderLibraryList();
     updateStage1Preview();
 }
@@ -688,6 +757,8 @@ function collectSettingsFromUi() {
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
     settings.postProcessPrompt = clean(document.getElementById('le_eternalism_post').value);
     settings.stage1HistoryDepth = Number(document.getElementById('le_eternalism_stage1_tokens').value) || 0;
+    collectApiBlock('s1', settings.stage1Api);
+    collectApiBlock('s3', settings.stage3Api);
     saveSettings();
     ensureAllMacrosRegistered();
 }
@@ -711,6 +782,8 @@ async function initExtension() {
         });
         document.getElementById('le_eternalism_post').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_stage1_tokens').addEventListener('input', collectSettingsFromUi);
+        bindApiBlock('s1');
+        bindApiBlock('s3');
         document.getElementById('le_eternalism_add_prompt').addEventListener('click', () => {
             getSettings().library.push({ name: '', variable: '', trigger: '', prompt: '', enabled: true });
             renderLibraryList();

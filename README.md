@@ -38,6 +38,7 @@ All settings are in **Settings → Extensions → "LE Eternalism — RPG Engine"
 - **Post-process the generated reply (Stage 3 recheck)** — off by default; formats the generated reply with the Stage 3 prompt.
 - **Stage 1 — System prompt 1** (analysis commands) and **Stage 1 — System prompt 2** (thinking checklist).
 - **Stage 1 history depth** — how many of the most recent chat messages are sent to the analyzer (0 = unlimited).
+- **Stage 1 / Stage 3 — use a different API/model** — each stage can run on its own Chat Completion backend (base URL, API key, model, max tokens, temperature) via SillyTavern's own backend proxy (`ChatCompletionService`). Leave unchecked to use the main API.
 - **Stage 3 post-process prompt** — used only when post-processing is enabled.
 - **Prompt library** — named modules (name + preset variable + text + enabled) that Stage 1 can include or exclude.
 
