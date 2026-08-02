@@ -159,8 +159,20 @@ async function runPipeline(reason) {
         return;
     }
 
-    const stage1Prompt = [settings.analysisPrompt1, settings.analysisPrompt2].filter(Boolean).join('\n\n') || settings.analysisPrompt || '';
-    if (!stage1Prompt.trim() || !settings.mainPrompt.trim()) {
+    const s = settings;
+    const stage1SystemPrompts = [];
+    if ((s.analysisPrompt1 ?? '').trim() || (s.analysisPrompt2 ?? '').trim()) {
+        if ((s.analysisPrompt1 ?? '').trim()) {
+            stage1SystemPrompts.push(s.analysisPrompt1.trim());
+        }
+        if ((s.analysisPrompt2 ?? '').trim()) {
+            stage1SystemPrompts.push(s.analysisPrompt2.trim());
+        }
+    } else if ((s.analysisPrompt ?? '').trim()) {
+        stage1SystemPrompts.push(s.analysisPrompt.trim());
+    }
+
+    if (stage1SystemPrompts.length === 0 || !s.mainPrompt.trim()) {
         toastr.warning('LE Eternalism: Stage 1 and Stage 2 prompts must not be empty.');
         log('Aborted: analysis or main prompt is empty.');
         return;
@@ -171,8 +183,10 @@ async function runPipeline(reason) {
     log(`Pipeline started (${reason}).`);
     try {
         const history = await buildStage1History();
+        const stage1Messages = stage1SystemPrompts.map(p => ({ role: 'system', content: p }));
+        stage1Messages.push({ role: 'user', content: history });
         const analysis = await context.generateRaw({
-            prompt: `${history}\n\n${stage1Prompt}`,
+            prompt: stage1Messages,
         });
         const { includes, excludes } = parseAnalysisResult(analysis);
         const selected = selectIncludedPrompts(includes, excludes);
@@ -301,7 +315,15 @@ function updateStage1Preview() {
     }
     const p1 = document.getElementById('le_eternalism_analysis1').value.trim();
     const p2 = document.getElementById('le_eternalism_analysis2').value.trim();
-    previewEl.textContent = `[Chat context (history)]\n\n${p1 || '(empty)'}\n\n${p2 || '(empty)'}`;
+    const parts = [];
+    if (p1) {
+        parts.push(`[System prompt 1]\n${p1}`);
+    }
+    if (p2) {
+        parts.push(`[System prompt 2]\n${p2}`);
+    }
+    parts.push('[User: chat history]\n{name}: message lines from the chat');
+    previewEl.textContent = parts.join('\n\n');
 }
 
 function loadSettingsIntoUi() {
