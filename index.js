@@ -306,7 +306,7 @@ function collectSettingsFromUi() {
 async function initExtension() {
     const context = SillyTavern.getContext();
     try {
-        const settingsHtml = await context.renderExtensionTemplateAsync('third-party/le-eternalism', 'settings');
+        const settingsHtml = await context.renderExtensionTemplateAsync('third-party/LE_ETERNALISM', 'settings');
         $('#extensions_settings2').append(settingsHtml);
 
         document.getElementById('le_eternalism_enabled').addEventListener('change', collectSettingsFromUi);
