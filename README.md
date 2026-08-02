@@ -30,7 +30,7 @@ If no include/exclude directives are found, all enabled library modules are used
 
 ## Settings
 
-All settings are in **Settings → Extensions → "LE Eternalism — RPG Engine"**:
+All settings are in **Settings → Extensions → "LE_ETERNALISM"**:
 
 - **Auto-run Stage 1 analysis when a message is sent** — runs the analysis (and variable application) before the preset generates; applies to **Normal**, **Continue**, **Swipe**, and **Regenerate** generations.
 - **Debug mode** — pauses after Stage 1 and shows the analysis output plus the parsed directives in a popup; after you accept it, the Stage 2 prompt preview opens automatically before the request is sent (or abort).
