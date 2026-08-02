@@ -237,6 +237,10 @@ async function runAnalysisAndApply(reason) {
         const historyMessages = await buildStage1History();
         const stage1Messages = stage1SystemPrompts.map(p => ({ role: 'system', content: p }));
         stage1Messages.push(...historyMessages);
+        stage1Messages.push({
+            role: 'user',
+            content: 'Analyze the scene above. Reply with your commands only.',
+        });
         const analysis = await context.generateRaw({
             prompt: stage1Messages,
         });
@@ -620,6 +624,7 @@ function updateStage1Preview() {
         parts.push(`[System prompt 2]\n${p2}`);
     }
     parts.push('[Chat history]\n...alternating messages: player = user role, AI = assistant role...');
+    parts.push('[User: closing instruction]\nAnalyze the scene above. Reply with your commands only.');
     previewEl.textContent = parts.join('\n\n');
 }
 
