@@ -562,28 +562,6 @@ function handleCombinePrompts(eventData) {
     log(`Stage 2 prompt captured (${lastStage2Prompt.length} chars).`);
 }
 
-async function showStage2Prompt() {
-    const context = SillyTavern.getContext();
-    if (!lastStage2Prompt) {
-        toastr.info('LE Eternalism: no Stage 2 prompt captured yet.');
-        return;
-    }
-    const { Popup, POPUP_TYPE } = context;
-    const popup = new Popup(
-        `<h3>Stage 2 prompt (combined, macros resolved)</h3>`
-        + `<pre class="le_eternalism_debug le_eternalism_prompt">${escapeHtml(lastStage2Prompt)}</pre>`,
-        POPUP_TYPE.TEXT,
-        '',
-        {
-            wide: true,
-            large: true,
-            allowVerticalScrolling: true,
-            okButton: 'Close',
-        },
-    );
-    await popup.show();
-}
-
 function renderLibraryList() {
     const settings = getSettings();
     const container = document.getElementById('le_eternalism_library_list');
@@ -738,14 +716,6 @@ async function initExtension() {
             renderLibraryList();
             saveSettings();
         });
-        document.getElementById('le_eternalism_run').addEventListener('click', () => {
-            runAnalysisAndApply('manual').then(applied => {
-                if (applied) {
-                    toastr.info('LE Eternalism: variables applied.');
-                }
-            });
-        });
-        document.getElementById('le_eternalism_view_prompt').addEventListener('click', showStage2Prompt);
 
         context.eventSource.on(context.eventTypes.GENERATION_AFTER_COMMANDS, handleGenerationStart);
         context.eventSource.on(context.eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
