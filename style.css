@@ -55,6 +55,19 @@
     resize: vertical;
 }
 
+.le-eternalism-settings .le_eternalism_master_row {
+    background: rgba(96, 165, 250, 0.12);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.le-eternalism-settings .le_eternalism_master_label {
+    font-weight: bold;
+    font-size: 14px;
+}
+
 .le-eternalism-settings .le_eternalism_section {
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 8px;
