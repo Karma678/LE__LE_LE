@@ -519,6 +519,7 @@ async function postProcessMessage(messageId, type) {
 
         handle = context.loader.show({
             message: 'Stage 3: post-processing reply...',
+            blocking: false,
             onStop: () => {
                 stage3Cancelled = true;
                 abortController.abort();
