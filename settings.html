@@ -40,8 +40,8 @@
         <div class="le_eternalism_hint">Stage 1 is sent as two separate system prompts plus the chat history as proper role messages: player messages = user role, AI messages = assistant role (speaker name embedded in each message's content). Persona, character card, world info and preset prompts are excluded.</div>
         <pre id="le_eternalism_stage1_preview"></pre>
 
-        <label for="le_eternalism_stage1_tokens">Stage 1 &mdash; history limit (tokens approx, 0 = unlimited)</label>
-        <input id="le_eternalism_stage1_tokens" type="number" min="0" step="500">
+        <label for="le_eternalism_stage1_tokens">Stage 1 &mdash; history depth (messages, 0 = unlimited)</label>
+        <input id="le_eternalism_stage1_tokens" type="number" min="0" step="1">
 
         <label for="le_eternalism_post">Stage 3 &mdash; post-process / recheck prompt (optional)</label>
         <textarea id="le_eternalism_post" class="text_pole" rows="4" placeholder="Prompt for the formatting AI. Receives only the generated reply. Used when 'Post-process the generated reply' is enabled."></textarea>

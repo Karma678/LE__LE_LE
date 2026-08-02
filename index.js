@@ -23,7 +23,7 @@ const defaultSettings = {
         'Rewrite the draft reply according to these rules: proper markdown, paragraph breaks, no code blocks, no meta commentary, no stage labels.',
         'Output ONLY the final formatted reply text.',
     ].join('\n'),
-    stage1ContextTokens: 16000,
+    stage1HistoryDepth: 50,
     library: [],
 };
 
@@ -193,29 +193,18 @@ function selectIncludedPrompts(includes, excludes, analysisText) {
 async function buildStage1History() {
     const context = SillyTavern.getContext();
     const settings = getSettings();
-    const budget = Number(settings.stage1ContextTokens) || 0;
-    const charBudget = budget * 4;
+    const depth = Number(settings.stage1HistoryDepth) || 0;
     const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
     const toMessage = m => ({
         role: m.is_user ? 'user' : 'assistant',
         content: clean(`${m.name || (m.is_user ? context.name1 : context.name2)}: ${m.mes}`),
     });
-    if (charBudget <= 0) {
+    if (depth <= 0) {
         return messages.map(toMessage);
     }
-    const chunks = [];
-    let used = 0;
-    for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = toMessage(messages[i]);
-        const size = msg.content.length;
-        if (chunks.length > 0 && used + size > charBudget) {
-            break;
-        }
-        chunks.unshift(msg);
-        used += size;
-    }
-    log(`Stage 1 history: ${chunks.length} message(s), ${used} chars (budget ${budget} tokens approx).`);
-    return chunks;
+    const selected = messages.slice(-depth);
+    log(`Stage 1 history: ${selected.length} message(s) (depth ${depth}).`);
+    return selected.map(toMessage);
 }
 
 function applyVariables(selected) {
@@ -707,7 +696,7 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
     document.getElementById('le_eternalism_post').value = settings.postProcessPrompt;
-    document.getElementById('le_eternalism_stage1_tokens').value = settings.stage1ContextTokens;
+    document.getElementById('le_eternalism_stage1_tokens').value = settings.stage1HistoryDepth;
     renderLibraryList();
     updateStage1Preview();
 }
@@ -720,7 +709,7 @@ function collectSettingsFromUi() {
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
     settings.postProcessPrompt = clean(document.getElementById('le_eternalism_post').value);
-    settings.stage1ContextTokens = Number(document.getElementById('le_eternalism_stage1_tokens').value) || 0;
+    settings.stage1HistoryDepth = Number(document.getElementById('le_eternalism_stage1_tokens').value) || 0;
     saveSettings();
     ensureAllMacrosRegistered();
 }
