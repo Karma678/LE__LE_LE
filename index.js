@@ -424,6 +424,9 @@ async function postProcessMessage(messageId, type) {
         return;
     }
 
+    let handle = null;
+    let stage3Cancelled = false;
+    const abortController = new AbortController();
     try {
         log(`Post-processing message ${messageId}...`);
         const messages = stage3SystemPrompts.map(p => ({ role: 'system', content: p }));
@@ -442,13 +445,35 @@ async function postProcessMessage(messageId, type) {
             }
         }
 
+        handle = context.loader.show({
+            message: 'Stage 3: post-processing reply...',
+            onStop: () => {
+                stage3Cancelled = true;
+                abortController.abort();
+                try {
+                    context.stopGeneration();
+                } catch (error) {
+                    console.warn('[LE Eternalism] Could not stop generation:', error);
+                }
+            },
+        });
+
         let formatted;
-        if (isCustomApiConfigured(settings.stage3Api)) {
-            formatted = await customChatCompletion(settings.stage3Api, messages);
-        } else {
-            formatted = await rawGenerate({
-                prompt: messages,
-            });
+        try {
+            if (isCustomApiConfigured(settings.stage3Api)) {
+                formatted = await customChatCompletion(settings.stage3Api, messages, abortController.signal);
+            } else {
+                formatted = await rawGenerate({
+                    prompt: messages,
+                });
+            }
+        } catch (error) {
+            if (stage3Cancelled || abortController.signal.aborted) {
+                toastr.info('LE Eternalism: Stage 3 cancelled — keeping the original message.');
+                log('Stage 3 cancelled by user.');
+                return;
+            }
+            throw error;
         }
         message.mes = formatted;
         const swipeId = message.swipe_id ?? 0;
@@ -461,6 +486,10 @@ async function postProcessMessage(messageId, type) {
     } catch (error) {
         toastr.error(`LE Eternalism post-process failed: ${error.message}`);
         log(`Post-process failed: ${error}`);
+    } finally {
+        if (handle) {
+            await handle.hide();
+        }
     }
 }
 
