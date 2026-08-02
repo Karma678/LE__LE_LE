@@ -153,10 +153,10 @@
 }
 
 .le-eternalism-settings .menu_button:hover {
-    background: linear-gradient(180deg, #d4af37 0%, #a8892a 100%) !important;
-    border-color: #e8c766 !important;
-    color: #060913 !important;
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+    background: linear-gradient(180deg, #7aa5ff 0%, #4a74d6 100%) !important;
+    border-color: rgba(120, 165, 255, 0.6) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 10px rgba(90, 140, 255, 0.3);
 }
 
 .le-eternalism-settings .menu_button:active {
@@ -280,7 +280,7 @@
 
 /* ---------- Macro editor popup ---------- */
 .popup:has(.le_eternalism_editor) {
-    background: linear-gradient(180deg, #121b30 0%, #0b1220 100%) !important;
+    background: linear-gradient(180deg, #1a2540 0%, #121b30 100%) !important;
     border: 1px solid #2b3752 !important;
     color: #eceef4 !important;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(236, 238, 244, 0.05);
@@ -303,7 +303,7 @@
 }
 
 .le_eternalism_editor {
-    background: linear-gradient(180deg, #121b30 0%, #0b1220 100%);
+    background: linear-gradient(180deg, #1f2b4a 0%, #16203a 100%);
     border: 1px solid #2b3752;
     border-radius: 10px;
     padding: 12px;
@@ -319,7 +319,7 @@
 
 .le_eternalism_editor input.text_pole,
 .le_eternalism_editor textarea.text_pole {
-    background: #060913 !important;
+    background: #0c1322 !important;
     border: 1px solid #2b3752 !important;
     border-radius: 6px !important;
     color: #eceef4 !important;
