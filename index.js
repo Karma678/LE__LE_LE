@@ -116,6 +116,13 @@ function escapeRegex(text) {
     return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function setStatus(text) {
+    const el = document.getElementById('le_eternalism_status');
+    if (el) {
+        el.textContent = text;
+    }
+}
+
 function log(message) {
     console.log(`[LE Eternalism] ${message}`);
     const logEl = document.getElementById('le_eternalism_log');
@@ -124,6 +131,7 @@ function log(message) {
         logEl.textContent = `${logEl.textContent}\n${line}`.trim();
         logEl.scrollTop = logEl.scrollHeight;
     }
+    setStatus(message);
 }
 
 function parseAnalysisResult(text) {
@@ -290,9 +298,11 @@ async function runAnalysisAndApply(reason) {
             handle = context.loader.show({ message: 'Stage 1: analyzing scene...' });
         }
 
-        applyVariables(selected);
-        log('Variables applied. Generation continues.');
-        return true;
+    applyVariables(selected);
+    log('Variables applied. Generation continues.');
+    const activeList = [...activeModuleVariables.entries()].filter(([, v]) => v && v.trim()).map(([k]) => k);
+    setStatus(`Analysis: included = ${selected.length ? selected.map(p => p.name).join(', ') : 'none'} | Variables active: ${activeList.join(', ') || 'none'}`);
+    return true;
     } finally {
         isPipelineRunning = false;
         await handle.hide();
@@ -455,10 +465,13 @@ async function handlePromptReady(eventData) {
         }
         for (const module of modules) {
             const variable = module.variable.trim();
+            const lowerContent = msg.content.toLowerCase();
+            let found = false;
             for (const tag of [`[[le_${variable}]]`, `{{le_${variable}}}`]) {
-                if (!msg.content.includes(tag)) {
+                if (!lowerContent.includes(tag.toLowerCase())) {
                     continue;
                 }
+                found = true;
                 const value = activeModuleVariables.get(variable) ?? '';
                 const processed = clean(typeof context.substituteParams === 'function' ? context.substituteParams(value) : value);
                 if (processed.trim() === '') {
@@ -469,7 +482,9 @@ async function handlePromptReady(eventData) {
                     log(`Replaced ${tag} in prompt (${processed.length} chars).`);
                 }
                 replacements++;
-                log(`Replaced ${tag} in prompt (${processed.length} chars).`);
+            }
+            if (!found && (activeModuleVariables.get(variable) ?? '').trim() !== '') {
+                log(`WARNING: module "${module.name}" is ACTIVE but its tag [[le_${variable}]] was not found in the prompt. Add it to a preset prompt (e.g. Plaintext) so the content can be injected.`);
             }
         }
         msg.content = msg.content.replace(/(?:^[ \t]*\[\[le_[^\]]*\]\][ \t]*\r?\n?)|(?:\[\[le_[^\]]*\]\])/gm, '');
