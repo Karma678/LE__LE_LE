@@ -618,16 +618,22 @@ function cleanupPlaceholderSwipe() {
     }
     const context = SillyTavern.getContext();
     const message = context.chat[context.chat.length - 1];
-    if (message && Array.isArray(message.swipes) && message.swipes[placeholderSwipeIndex] === '') {
-        if (message.swipes.length > placeholderSwipeIndex + 1) {
-            message.swipes.splice(placeholderSwipeIndex, 1);
-            if (message.swipe_id > message.swipes.length - 1) {
-                message.swipe_id = message.swipes.length - 1;
-            }
-            message.mes = message.swipes[message.swipe_id] ?? '';
-        }
-    }
+    const index = placeholderSwipeIndex;
     placeholderSwipeIndex = -1;
+    if (!message || !Array.isArray(message.swipes) || message.swipes[index] !== '') {
+        return;
+    }
+    if (message.swipes.length > index + 1) {
+        message.swipes.splice(index, 1);
+        if (message.swipe_id >= index) {
+            message.swipe_id = Math.max(index, message.swipe_id - 1);
+        }
+        if (message.swipe_id > message.swipes.length - 1) {
+            message.swipe_id = message.swipes.length - 1;
+        }
+        message.mes = message.swipes[message.swipe_id] ?? '';
+        log('Removed empty placeholder swipe.');
+    }
 }
 
 function handleCharacterMessageRendered(messageId) {
@@ -1110,9 +1116,9 @@ async function initExtension() {
         context.eventSource.on(context.eventTypes.GENERATION_AFTER_COMMANDS, handleGenerationStart);
         context.eventSource.on(context.eventTypes.GENERATION_STARTED, handleGenerationStarted);
         context.eventSource.on(context.eventTypes.GENERATION_STOPPED, cleanupPlaceholderSwipe);
-        context.eventSource.on(context.eventTypes.GENERATION_ENDED, cleanupPlaceholderSwipe);
         context.eventSource.on(context.eventTypes.CHAT_COMPLETION_PROMPT_READY, handlePromptReady);
         context.eventSource.on(context.eventTypes.GENERATE_AFTER_COMBINE_PROMPTS, handleCombinePrompts);
+        context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, cleanupPlaceholderSwipe);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, postProcessMessage);
         context.eventSource.on(context.eventTypes.MESSAGE_RECEIVED, cleanupStaleRevertButtons);
 
