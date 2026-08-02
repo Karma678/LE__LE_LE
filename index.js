@@ -803,14 +803,14 @@ async function openLibraryEditor(index) {
 
     const $content = $(`
         <div style="display:flex; flex-direction:column; gap:8px;">
-            <label class="le_eternalism_hint">Name (used in [include: ...] / [exclude: ...] and triggers)</label>
+            <label class="le_eternalism_hint">Macro Editing</label>
             <input type="text" id="le_eternalism_lib_name" class="text_pole" placeholder="Prompt name">
             <div class="flex-container alignItemsCenter flexGap5">
                 <input type="text" id="le_eternalism_lib_variable" class="text_pole flex1" placeholder="variable (e.g. violence)">
                 <input type="text" id="le_eternalism_lib_trigger" class="text_pole flex1" placeholder="trigger (e.g. [include: Combat Rules])">
             </div>
             <label class="checkbox_label"><input type="checkbox" id="le_eternalism_lib_enabled"> <span>Enabled</span></label>
-            <label class="le_eternalism_hint">Prompt module text</label>
+            <label class="le_eternalism_hint">Macro prompt</label>
             <textarea id="le_eternalism_lib_prompt" class="text_pole" style="width:100%; min-height:200px; font-family:monospace; resize:vertical;"></textarea>
         </div>
     `);
