@@ -50,8 +50,13 @@
             </div>
         </div>
 
-        <label for="le_eternalism_post">Stage 3 &mdash; post-process / recheck prompt (optional)</label>
-        <textarea id="le_eternalism_post" class="text_pole" rows="4" placeholder="Prompt for the formatting AI. Receives only the generated reply. Used when 'Post-process the generated reply' is enabled."></textarea>
+        <label for="le_eternalism_post1">Stage 3 &mdash; System prompt 1 (formatting commands)</label>
+        <textarea id="le_eternalism_post1" class="text_pole" rows="4"></textarea>
+
+        <label for="le_eternalism_post2">Stage 3 &mdash; System prompt 2 (thinking checklist)</label>
+        <textarea id="le_eternalism_post2" class="text_pole" rows="3"></textarea>
+
+        <div class="le_eternalism_hint">Stage 3 sends the two system prompts plus the very last AI reply as a user message; the reply in chat is replaced with the result.</div>
 
         <div class="le_eternalism_api_block">
             <label for="le_eternalism_s3_custom" class="checkbox_label">

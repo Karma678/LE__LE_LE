@@ -18,10 +18,17 @@ const defaultSettings = {
         '{3} Verify what commands you should send.',
         '</think>',
     ].join('\n'),
-    postProcessPrompt: [
+    postProcessPrompt1: [
         'You are the formatting editor of the RPG engine.',
         'Rewrite the draft reply according to these rules: proper markdown, paragraph breaks, no code blocks, no meta commentary, no stage labels.',
         'Output ONLY the final formatted reply text.',
+    ].join('\n'),
+    postProcessPrompt2: [
+        '<think>',
+        '{1} Is the reply in character and from the correct POV?',
+        '{2} Does it follow the formatting rules?',
+        '{3} Verify the final output.',
+        '</think>',
     ].join('\n'),
     stage1HistoryDepth: 50,
     stage1Api: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
@@ -359,7 +366,21 @@ async function postProcessMessage(messageId, type) {
     if (!settings.postProcessEnabled) {
         return;
     }
-    if (!clean(settings.postProcessPrompt).trim()) {
+
+    const s = settings;
+    const stage3SystemPrompts = [];
+    if (clean(s.postProcessPrompt1).trim() || clean(s.postProcessPrompt2).trim()) {
+        if (clean(s.postProcessPrompt1).trim()) {
+            stage3SystemPrompts.push(clean(s.postProcessPrompt1).trim());
+        }
+        if (clean(s.postProcessPrompt2).trim()) {
+            stage3SystemPrompts.push(clean(s.postProcessPrompt2).trim());
+        }
+    } else if (clean(s.postProcessPrompt).trim()) {
+        stage3SystemPrompts.push(clean(s.postProcessPrompt).trim());
+    }
+
+    if (stage3SystemPrompts.length === 0) {
         return;
     }
     if (messageId !== context.chat.length - 1) {
@@ -376,17 +397,14 @@ async function postProcessMessage(messageId, type) {
 
     try {
         log(`Post-processing message ${messageId}...`);
-        const promptText = clean(message.mes);
+        const messages = stage3SystemPrompts.map(p => ({ role: 'system', content: p }));
+        messages.push({ role: 'user', content: clean(message.mes) });
         let formatted;
         if (isCustomApiConfigured(settings.stage3Api)) {
-            formatted = await customChatCompletion(settings.stage3Api, [
-                { role: 'system', content: clean(settings.postProcessPrompt) },
-                { role: 'user', content: promptText },
-            ]);
+            formatted = await customChatCompletion(settings.stage3Api, messages);
         } else {
             formatted = await rawGenerate({
-                systemPrompt: clean(settings.postProcessPrompt),
-                prompt: promptText,
+                prompt: messages,
             });
         }
         message.mes = formatted;
@@ -740,7 +758,8 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
-    document.getElementById('le_eternalism_post').value = settings.postProcessPrompt;
+    document.getElementById('le_eternalism_post1').value = settings.postProcessPrompt1 ?? '';
+    document.getElementById('le_eternalism_post2').value = settings.postProcessPrompt2 ?? '';
     document.getElementById('le_eternalism_stage1_tokens').value = settings.stage1HistoryDepth;
     loadApiBlock('s1', settings.stage1Api);
     loadApiBlock('s3', settings.stage3Api);
@@ -755,7 +774,8 @@ function collectSettingsFromUi() {
     settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
-    settings.postProcessPrompt = clean(document.getElementById('le_eternalism_post').value);
+    settings.postProcessPrompt1 = clean(document.getElementById('le_eternalism_post1').value);
+    settings.postProcessPrompt2 = clean(document.getElementById('le_eternalism_post2').value);
     settings.stage1HistoryDepth = Number(document.getElementById('le_eternalism_stage1_tokens').value) || 0;
     collectApiBlock('s1', settings.stage1Api);
     collectApiBlock('s3', settings.stage3Api);
@@ -780,7 +800,8 @@ async function initExtension() {
             collectSettingsFromUi();
             updateStage1Preview();
         });
-        document.getElementById('le_eternalism_post').addEventListener('input', collectSettingsFromUi);
+        document.getElementById('le_eternalism_post1').addEventListener('input', collectSettingsFromUi);
+        document.getElementById('le_eternalism_post2').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_stage1_tokens').addEventListener('input', collectSettingsFromUi);
         bindApiBlock('s1');
         bindApiBlock('s3');
