@@ -59,7 +59,7 @@ function isCustomApiConfigured(config) {
         && String(config.apiKey ?? '').trim());
 }
 
-async function customChatCompletion(config, messages) {
+async function customChatCompletion(config, messages, signal = null) {
     const context = SillyTavern.getContext();
     const { ChatCompletionService } = context;
     const baseUrl = String(config.baseUrl ?? '').trim().replace(/\/+$/, '');
@@ -75,7 +75,7 @@ async function customChatCompletion(config, messages) {
             reverse_proxy: baseUrl,
             proxy_password: String(config.apiKey ?? '').trim(),
         });
-        const result = await ChatCompletionService.sendRequest(payload);
+        const result = await ChatCompletionService.sendRequest(payload, true, signal);
         return result.content;
     } finally {
         rawRequestInFlight = false;
@@ -297,7 +297,20 @@ async function runAnalysisAndApply(reason) {
     }
 
     isPipelineRunning = true;
-    let handle = context.loader.show({ message: 'Stage 1: analyzing scene...' });
+    let stage1Cancelled = false;
+    const abortController = new AbortController();
+    let handle = context.loader.show({
+        message: 'Stage 1: analyzing scene...',
+        onStop: () => {
+            stage1Cancelled = true;
+            abortController.abort();
+            try {
+                context.stopGeneration();
+            } catch (error) {
+                console.warn('[LE Eternalism] Could not stop generation:', error);
+            }
+        },
+    });
     log(`Analysis started (${reason}).`);
     try {
         const historyMessages = await buildStage1History();
@@ -307,11 +320,21 @@ async function runAnalysisAndApply(reason) {
             role: 'user',
             content: 'Analyze the scene above. Reply with your commands only.',
         });
-        const analysis = isCustomApiConfigured(settings.stage1Api)
-            ? await customChatCompletion(settings.stage1Api, stage1Messages)
-            : await rawGenerate({
-                prompt: stage1Messages,
-            });
+        let analysis;
+        try {
+            analysis = isCustomApiConfigured(settings.stage1Api)
+                ? await customChatCompletion(settings.stage1Api, stage1Messages, abortController.signal)
+                : await rawGenerate({
+                    prompt: stage1Messages,
+                });
+        } catch (error) {
+            if (stage1Cancelled || abortController.signal.aborted) {
+                toastr.info('LE Eternalism: Stage 1 cancelled.');
+                log('Stage 1 cancelled by user.');
+                return false;
+            }
+            throw error;
+        }
 
         const { includes, excludes } = parseAnalysisResult(analysis);
         const selected = selectIncludedPrompts(includes, excludes, analysis);
@@ -341,6 +364,12 @@ async function runAnalysisAndApply(reason) {
             const result = await popup.show();
             if (result !== POPUP_RESULT.AFFIRMATIVE) {
                 log('Aborted by user at Stage 1 debug checkpoint.');
+                try {
+                    context.stopGeneration();
+                } catch (error) {
+                    console.warn('[LE Eternalism] Could not stop generation:', error);
+                }
+                toastr.info('LE Eternalism: generation cancelled.');
                 return false;
             }
             previewArmed = true;
@@ -348,11 +377,11 @@ async function runAnalysisAndApply(reason) {
             handle = context.loader.show({ message: 'Stage 1: analyzing scene...' });
         }
 
-    applyVariables(selected);
-    log('Variables applied. Generation continues.');
-    const activeList = [...activeModuleVariables.entries()].filter(([, v]) => v && v.trim()).map(([k]) => k);
-    setStatus(`Analysis: included = ${selected.length ? selected.map(p => p.name).join(', ') : 'none'} | Variables active: ${activeList.join(', ') || 'none'}`);
-    return true;
+        applyVariables(selected);
+        log('Variables applied. Generation continues.');
+        const activeList = [...activeModuleVariables.entries()].filter(([, v]) => v && v.trim()).map(([k]) => k);
+        setStatus(`Analysis: included = ${selected.length ? selected.map(p => p.name).join(', ') : 'none'} | Variables active: ${activeList.join(', ') || 'none'}`);
+        return true;
     } finally {
         isPipelineRunning = false;
         await handle.hide();
