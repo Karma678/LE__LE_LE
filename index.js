@@ -465,6 +465,7 @@ async function postProcessMessage(messageId, type) {
     const settings = getSettings();
 
     if (!settings.postProcessEnabled || !settings.masterEnabled) {
+        log(`Post-process skipped (postProcessEnabled=${settings.postProcessEnabled}, masterEnabled=${settings.masterEnabled}).`);
         return;
     }
 
@@ -482,17 +483,21 @@ async function postProcessMessage(messageId, type) {
     }
 
     if (stage3SystemPrompts.length === 0) {
+        log('Post-process skipped (no Stage 3 prompts configured).');
         return;
     }
     if (messageId !== context.chat.length - 1) {
+        log(`Post-process skipped (message ${messageId} is not the last one; last is ${context.chat.length - 1}).`);
         return;
     }
 
     const message = context.chat[messageId];
     if (!message || message.is_user || message.is_system) {
+        log('Post-process skipped (message is missing, user or system).');
         return;
     }
     if (typeof message.mes !== 'string' || !message.mes.trim()) {
+        log('Post-process skipped (message body is empty).');
         return;
     }
 
