@@ -55,6 +55,10 @@ function saveSettings() {
     context.saveSettingsDebounced();
 }
 
+function clean(text) {
+    return String(text ?? '').replace(/\r\n?/g, '\n');
+}
+
 function log(message) {
     console.log(`[LE Eternalism] ${message}`);
     const logEl = document.getElementById('le_eternalism_log');
@@ -96,11 +100,11 @@ function selectIncludedPrompts(includes, excludes) {
 }
 
 function buildStage2Prompt(settings, selected) {
-    const parts = [settings.mainPrompt];
+    const parts = [clean(settings.mainPrompt)];
     if (selected.length > 0) {
         parts.push('[ACTIVE PROMPT MODULES]');
         for (const prompt of selected) {
-            parts.push(`### ${prompt.name} ###\n${prompt.prompt}`);
+            parts.push(`### ${clean(prompt.name)} ###\n${clean(prompt.prompt)}`);
         }
     }
     return parts.join('\n\n');
@@ -113,7 +117,7 @@ async function buildStage1History() {
     const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
     const toMessage = m => ({
         role: m.is_user ? 'user' : 'assistant',
-        content: `${m.name || (m.is_user ? context.name1 : context.name2)}: ${m.mes}`,
+        content: clean(`${m.name || (m.is_user ? context.name1 : context.name2)}: ${m.mes}`),
     });
     if (budget <= 0) {
         return messages.map(toMessage);
@@ -164,15 +168,15 @@ async function runPipeline(reason) {
 
     const s = settings;
     const stage1SystemPrompts = [];
-    if ((s.analysisPrompt1 ?? '').trim() || (s.analysisPrompt2 ?? '').trim()) {
-        if ((s.analysisPrompt1 ?? '').trim()) {
-            stage1SystemPrompts.push(s.analysisPrompt1.trim());
+    if (clean(s.analysisPrompt1).trim() || clean(s.analysisPrompt2).trim()) {
+        if (clean(s.analysisPrompt1).trim()) {
+            stage1SystemPrompts.push(clean(s.analysisPrompt1).trim());
         }
-        if ((s.analysisPrompt2 ?? '').trim()) {
-            stage1SystemPrompts.push(s.analysisPrompt2.trim());
+        if (clean(s.analysisPrompt2).trim()) {
+            stage1SystemPrompts.push(clean(s.analysisPrompt2).trim());
         }
-    } else if ((s.analysisPrompt ?? '').trim()) {
-        stage1SystemPrompts.push(s.analysisPrompt.trim());
+    } else if (clean(s.analysisPrompt).trim()) {
+        stage1SystemPrompts.push(clean(s.analysisPrompt).trim());
     }
 
     if (stage1SystemPrompts.length === 0 || !s.mainPrompt.trim()) {
@@ -202,10 +206,10 @@ async function runPipeline(reason) {
         log('Stage 2 done. Draft generated.');
 
         let final = draft;
-        if (settings.postProcessPrompt.trim()) {
+        if (clean(settings.postProcessPrompt).trim()) {
             final = await context.generateRaw({
-                systemPrompt: settings.postProcessPrompt,
-                prompt: draft,
+                systemPrompt: clean(settings.postProcessPrompt),
+                prompt: clean(draft),
             });
             log('Stage 3 done. Message formatted.');
         } else {
@@ -293,7 +297,7 @@ function renderLibraryList() {
         promptArea.placeholder = 'Prompt module text...';
 
         nameInput.addEventListener('input', () => {
-            prompt.name = nameInput.value;
+            prompt.name = clean(nameInput.value);
             saveSettings();
         });
         enabledInput.addEventListener('change', () => {
@@ -301,7 +305,7 @@ function renderLibraryList() {
             saveSettings();
         });
         promptArea.addEventListener('input', () => {
-            prompt.prompt = promptArea.value;
+            prompt.prompt = clean(promptArea.value);
             saveSettings();
         });
 
@@ -346,10 +350,10 @@ function collectSettingsFromUi() {
     const settings = getSettings();
     settings.enabled = document.getElementById('le_eternalism_enabled').checked;
     settings.suppressDefaultReply = document.getElementById('le_eternalism_suppress').checked;
-    settings.analysisPrompt1 = document.getElementById('le_eternalism_analysis1').value;
-    settings.analysisPrompt2 = document.getElementById('le_eternalism_analysis2').value;
-    settings.mainPrompt = document.getElementById('le_eternalism_main').value;
-    settings.postProcessPrompt = document.getElementById('le_eternalism_post').value;
+    settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
+    settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
+    settings.mainPrompt = clean(document.getElementById('le_eternalism_main').value);
+    settings.postProcessPrompt = clean(document.getElementById('le_eternalism_post').value);
     settings.stage1ContextTokens = Number(document.getElementById('le_eternalism_stage1_tokens').value) || 0;
     saveSettings();
 }
