@@ -55,6 +55,29 @@
     resize: vertical;
 }
 
+.le-eternalism-settings > .inline-drawer-toggle {
+    position: relative;
+    background: linear-gradient(180deg, #e5484d 0%, #c11b22 35%, #8f1016 70%, #5c080c 100%);
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+    border: 1px solid rgba(255, 130, 130, 0.35);
+    border-radius: 8px;
+    padding: 8px 10px;
+    overflow: hidden;
+}
+
+.le-eternalism-settings > .inline-drawer-toggle::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    top: 2px;
+    height: 42%;
+    border-radius: 6px 6px 0 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0));
+    pointer-events: none;
+}
+
 .le-eternalism-settings .le_eternalism_master_row {
     background: rgba(96, 165, 250, 0.12);
     border: 1px solid var(--SmartThemeBorderColor);
