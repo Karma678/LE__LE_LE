@@ -111,22 +111,26 @@ async function buildStage1History() {
     const settings = getSettings();
     const budget = Number(settings.stage1ContextTokens) || 0;
     const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
-    const format = m => `${m.name ?? (m.is_user ? context.name1 : context.name2)}: ${m.mes}`;
+    const toMessage = m => ({
+        role: m.is_user ? 'user' : 'assistant',
+        name: m.name || (m.is_user ? context.name1 : context.name2),
+        content: m.mes,
+    });
     if (budget <= 0) {
-        return messages.map(format).join('\n');
+        return messages.map(toMessage);
     }
     const chunks = [];
     let used = 0;
     for (let i = messages.length - 1; i >= 0; i--) {
-        const line = format(messages[i]);
-        const tokens = await context.getTokenCountAsync(line);
+        const msg = toMessage(messages[i]);
+        const tokens = await context.getTokenCountAsync(msg.content);
         if (chunks.length > 0 && used + tokens > budget) {
             break;
         }
-        chunks.unshift(line);
+        chunks.unshift(msg);
         used += tokens;
     }
-    return chunks.join('\n');
+    return chunks;
 }
 
 async function postAsCharacter(text) {
@@ -182,9 +186,9 @@ async function runPipeline(reason) {
     const handle = context.loader.show({ message: 'Running RPG pipeline...' });
     log(`Pipeline started (${reason}).`);
     try {
-        const history = await buildStage1History();
+        const historyMessages = await buildStage1History();
         const stage1Messages = stage1SystemPrompts.map(p => ({ role: 'system', content: p }));
-        stage1Messages.push({ role: 'user', content: history });
+        stage1Messages.push(...historyMessages);
         const analysis = await context.generateRaw({
             prompt: stage1Messages,
         });
@@ -322,7 +326,7 @@ function updateStage1Preview() {
     if (p2) {
         parts.push(`[System prompt 2]\n${p2}`);
     }
-    parts.push('[User: chat history]\n{name}: message lines from the chat');
+    parts.push('[Chat history]\n...alternating messages: player = user role, AI = assistant role...');
     previewEl.textContent = parts.join('\n\n');
 }
 
