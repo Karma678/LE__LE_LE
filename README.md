@@ -1,5 +1,7 @@
 # LE_ETERNALISM
 
+(Visual on images that you see was made with Moonlit Echoes Theme Presets [Glimmer - by Rivelle])
+
 A SillyTavern extension for creating macro variables that are included via contextual analysis. It's about scene analysis and inserting relevant prompts.
 
 <img width="638" height="490" alt="image" src="https://github.com/user-attachments/assets/f2ea98e9-3181-453e-96bf-cc084b3fe40f" />
