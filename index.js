@@ -842,6 +842,7 @@ async function handlePromptReady(eventData) {
         return;
     }
     let replacements = 0;
+    const foundTags = new Set();
     messages.forEach(msg => {
         if (!msg || typeof msg.content !== 'string') {
             return;
@@ -849,12 +850,11 @@ async function handlePromptReady(eventData) {
         for (const module of modules) {
             const variable = normalizeVariable(module.variable);
             const lowerContent = msg.content.toLowerCase();
-            let found = false;
             for (const tag of [`[[le_${variable}]]`, `{{le_${variable}}}`]) {
                 if (!lowerContent.includes(tag.toLowerCase())) {
                     continue;
                 }
-                found = true;
+                foundTags.add(variable);
                 const value = activeModuleVariables.get(variable) ?? '';
                 const processed = clean(typeof context.substituteParams === 'function' ? context.substituteParams(value) : value);
                 if (processed.trim() === '') {
@@ -866,12 +866,15 @@ async function handlePromptReady(eventData) {
                 }
                 replacements++;
             }
-            if (!found && (activeModuleVariables.get(variable) ?? '').trim() !== '') {
-                log(`WARNING: module "${module.name}" is ACTIVE but its tag [[le_${variable}]] was not found in the prompt. Add it to a preset prompt (e.g. Plaintext) so the content can be injected.`);
-            }
         }
         msg.content = msg.content.replace(/(?:^[ \t]*\[\[le_[^\]]*\]\][ \t]*\r?\n?)|(?:\[\[le_[^\]]*\]\])/gm, '');
     });
+    for (const module of modules) {
+        const variable = normalizeVariable(module.variable);
+        if (!foundTags.has(variable) && (activeModuleVariables.get(variable) ?? '').trim() !== '') {
+            log(`WARNING: module "${module.name}" is ACTIVE but its tag [[le_${variable}]] was not found anywhere in the prompt. Add it to a preset prompt (e.g. Plaintext) so the content can be injected.`);
+        }
+    }
     if (replacements > 0) {
         log(`Prompt injection done (${replacements} replacement(s)).`);
     }
