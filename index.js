@@ -939,8 +939,9 @@ function renderLibrarySelector() {
     select.innerHTML = '';
     const placeholder = document.createElement('option');
     placeholder.value = '';
-    placeholder.textContent = 'Choose macro';
+    placeholder.textContent = 'Choose macro...';
     placeholder.disabled = true;
+    placeholder.hidden = true;
     placeholder.selected = true;
     select.appendChild(placeholder);
     settings.library.forEach((prompt, index) => {
