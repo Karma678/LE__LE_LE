@@ -2,6 +2,8 @@
 
 A SillyTavern extension for creating macro variables that are included via contextual analysis. 
 
+<img width="638" height="490" alt="image" src="https://github.com/user-attachments/assets/f2ea98e9-3181-453e-96bf-cc084b3fe40f" />
+
 ## Installation
 
 In SillyTavern, open the **Extensions** drawer (cubes icon), click **Install extension**, and enter:
@@ -15,8 +17,13 @@ https://github.com/um5130384-cmd/LE_ETERNALISM
 The extension adds three steps around your normal SillyTavern generation:
 
 1. **Stage 1 — Scene analysis.** Before the AI replies, a separate request analyzes the scene (chat history + your two analysis prompts). Based on the result, the extension activates the matching macro prompts for this scene.
+
+<img width="607" height="931" alt="ааааа" src="https://github.com/user-attachments/assets/68ef13a7-f49c-47d8-ac29-6f33930b76ab" />
+
 2. **Stage 2 — Generation.** SillyTavern generates normally with your preset. Nothing is replaced or rewritten — your preset keeps working as usual but with enabled or disabled macro prompts.
-3. **Stage 3 — Post-processing. (Optional step)** After the reply is generated, it is sent once more with your formatting prompts, and the polished version replaces the message in chat.
+3. **Stage 3 — Post-processing (optional step)** After the reply is generated, it is sent once more with your formatting prompts, and the polished version replaces the message in chat.
+
+<img width="618" height="603" alt="ggggg" src="https://github.com/user-attachments/assets/87a232c1-eb4b-4714-b5b7-4dd5d48e726f" />
 
 ## First-time setup
 
