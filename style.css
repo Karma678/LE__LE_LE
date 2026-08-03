@@ -278,6 +278,40 @@
     color: #aeb8cc;
 }
 
+.le_eternalism_reasoning_block {
+    border: 1px solid #2b3752;
+    border-radius: 8px;
+    margin: 8px 0;
+    background: rgba(6, 9, 19, 0.55);
+}
+
+.le_eternalism_reasoning_block summary {
+    cursor: pointer;
+    user-select: none;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #7aa5ff;
+    border-bottom: 1px solid rgba(43, 55, 82, 0.6);
+}
+
+.le_eternalism_reasoning_block summary:hover {
+    color: #eceef4;
+}
+
+.le_eternalism_reasoning_block[open] summary {
+    border-bottom-color: #2b3752;
+}
+
+.le_eternalism_reasoning_block .le_eternalism_debug {
+    margin: 0;
+    border: none;
+    border-radius: 0 0 8px 8px;
+    background: rgba(4, 6, 12, 0.85);
+    color: #aeb8cc;
+    max-height: 260px;
+}
+
 /* ---------- Macro editor popup ---------- */
 .popup:has(.le_eternalism_editor) {
     background: linear-gradient(180deg, #1a2540 0%, #121b30 100%) !important;

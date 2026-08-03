@@ -44,10 +44,41 @@ let lastStage2Prompt = '';
 let previewArmed = false;
 let rawRequestInFlight = false;
 
+function extractReasoningFromData(data) {
+    if (!data || typeof data !== 'object') {
+        return '';
+    }
+    const choice = data?.choices?.[0];
+    if (choice?.message) {
+        return String(choice.message.reasoning_content ?? choice.message.reasoning ?? '');
+    }
+    if (Array.isArray(data?.content)) {
+        return data.content
+            .filter(part => part?.type === 'thinking')
+            .map(part => String(part?.thinking ?? part?.text ?? ''))
+            .join('\n\n');
+    }
+    return String(choice?.reasoning ?? '');
+}
+
 async function rawGenerate(params) {
     rawRequestInFlight = true;
     try {
-        return await SillyTavern.getContext().generateRaw(params);
+        const context = SillyTavern.getContext();
+        if (typeof context.generateRawData === 'function') {
+            const data = await context.generateRawData({ prompt: params.prompt });
+            const extract = typeof context.extractMessageFromData === 'function'
+                ? context.extractMessageFromData(data, context.mainApi)
+                : String(data?.choices?.[0]?.message?.content ?? data?.content ?? '');
+            const content = clean(String(extract ?? ''));
+            const reasoning = clean(extractReasoningFromData(data));
+            if (!content) {
+                throw new Error('No message generated');
+            }
+            return { content, reasoning };
+        }
+        const content = clean(await context.generateRaw(params));
+        return { content, reasoning: '' };
     } finally {
         rawRequestInFlight = false;
     }
@@ -90,7 +121,10 @@ async function customChatCompletion(config, messages, signal = null) {
             proxy_password: String(config.apiKey ?? '').trim(),
         });
         const result = await ChatCompletionService.sendRequest(payload, true, signal);
-        return result.content;
+        return {
+            content: clean(String(result?.content ?? '')),
+            reasoning: clean(String(result?.reasoning ?? '')),
+        };
     } finally {
         rawRequestInFlight = false;
     }
@@ -418,16 +452,21 @@ async function runAnalysisAndApply(reason) {
             content: 'Analyze the scene above. Reply with your commands only.',
         });
         let analysis;
+        let reasoning = '';
         let usingCustom = false;
         try {
             if (isCustomApiEnabled(settings.stage1Api)) {
                 usingCustom = true;
                 validateCustomApiConfig(settings.stage1Api, 'Stage 1');
-                analysis = await customChatCompletion(settings.stage1Api, stage1Messages, abortController.signal);
+                const result = await customChatCompletion(settings.stage1Api, stage1Messages, abortController.signal);
+                analysis = result.content;
+                reasoning = result.reasoning;
             } else {
-                analysis = await rawGenerate({
+                const result = await rawGenerate({
                     prompt: stage1Messages,
                 });
+                analysis = result.content;
+                reasoning = result.reasoning;
             }
         } catch (error) {
             if (stage1Cancelled || abortController.signal.aborted) {
@@ -451,13 +490,24 @@ async function runAnalysisAndApply(reason) {
         const { includes, excludes } = parseAnalysisResult(analysis);
         const selected = selectIncludedPrompts(includes, excludes, analysis);
         log(`Stage 1 output:\n${analysis}`);
+        if (reasoning.trim()) {
+            log(`Stage 1 reasoning:\n${reasoning}`);
+        }
         log(`Stage 1 parsed. Included modules: ${selected.length > 0 ? selected.map(p => p.name).join(', ') : '(none)'}`);
 
         if (settings.debugMode) {
             await handle.hide();
             const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
+            const reasoningBlock = reasoning.trim()
+                ? `<details class="le_eternalism_reasoning_block">
+                    <summary>Model reasoning (${reasoning.length} chars)</summary>
+                    <pre class="le_eternalism_debug">${escapeHtml(reasoning)}</pre>
+                   </details>`
+                : '';
             const popup = new Popup(
                 `<h3>Stage 1 — Analysis output</h3>`
+                + reasoningBlock
+                + `<div class="le_eternalism_hint">Output (directives only, no reasoning):</div>`
                 + `<pre class="le_eternalism_debug">${escapeHtml(analysis)}</pre>`
                 + `<div class="le_eternalism_debug_summary">`
                 + `Parsed directives — include: ${[...includes].join(', ') || '(none)'}; `
@@ -581,11 +631,13 @@ async function postProcessMessage(messageId, type) {
         try {
             if (isCustomApiEnabled(settings.stage3Api)) {
                 validateCustomApiConfig(settings.stage3Api, 'Stage 3');
-                formatted = await customChatCompletion(settings.stage3Api, messages, abortController.signal);
+                const result = await customChatCompletion(settings.stage3Api, messages, abortController.signal);
+                formatted = result.content;
             } else {
-                formatted = await rawGenerate({
+                const result = await rawGenerate({
                     prompt: messages,
                 });
+                formatted = result.content;
             }
         } catch (error) {
             if (stage3Cancelled || abortController.signal.aborted) {
