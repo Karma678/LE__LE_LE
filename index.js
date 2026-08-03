@@ -924,9 +924,6 @@ async function handlePromptReady(eventData) {
     }
     const context = SillyTavern.getContext();
     const modules = getSettings().library.filter(m => normalizeVariable(m.variable));
-    if (modules.length === 0) {
-        return;
-    }
     let replacements = 0;
     const foundTags = new Set();
     messages.forEach(msg => {
@@ -955,6 +952,18 @@ async function handlePromptReady(eventData) {
         }
         msg.content = msg.content.replace(/(?:^[ \t]*\[\[le_[^\]]*\]\][ \t]*\r?\n?)|(?:\[\[le_[^\]]*\]\])/gm, '');
     });
+
+    let droppedEmpty = 0;
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg && typeof msg.content === 'string' && msg.content.trim() === '' && !msg.tool_calls && !msg.tool_call_id) {
+            messages.splice(i, 1);
+            droppedEmpty++;
+        }
+    }
+    if (droppedEmpty > 0) {
+        log(`Dropped ${droppedEmpty} empty message(s) from the prompt (${messages.length} remaining).`);
+    }
     for (const module of modules) {
         const variable = normalizeVariable(module.variable);
         if (!foundTags.has(variable) && (activeModuleVariables.get(variable) ?? '').trim() !== '') {
