@@ -67,5 +67,11 @@ Insert in preset prompts registered macro:
 
 ## Tips
 
-- The analyzer re-checks the scene on every message, so rules switch on and off automatically as the story changes.
+- For stage 1 and stage 3 I recommend to use Deepseek V4 flash. It works really nice.
 - To find errors in your editing look at console of extension.
+
+## Reverse engeenering
+
+Download this to understand syntax and how it works.
+
+[le_eternalism_settings_2026-08-03T11-27-54.json](https://github.com/user-attachments/files/30659156/le_eternalism_settings_2026-08-03T11-27-54.json)
