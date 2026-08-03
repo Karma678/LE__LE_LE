@@ -173,6 +173,7 @@ function sanitizeApiBlocks(settings) {
         if (clone[key] && typeof clone[key] === 'object') {
             delete clone[key].apiKey;
             delete clone[key].baseUrl;
+            delete clone[key].model;
         }
     }
     return clone;
@@ -189,7 +190,7 @@ function exportSettings() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toastr.success('LE Eternalism: settings exported (API keys and base URLs excluded).');
+    toastr.success('LE Eternalism: settings exported (API keys, base URLs and models excluded).');
     log('Settings exported.');
 }
 
@@ -208,8 +209,8 @@ async function importSettings(event) {
         const context = SillyTavern.getContext();
         const previous = context.extensionSettings[MODULE_NAME] || {};
         const preserved = {
-            s1: { apiKey: previous.stage1Api?.apiKey ?? '', baseUrl: previous.stage1Api?.baseUrl ?? '' },
-            s3: { apiKey: previous.stage3Api?.apiKey ?? '', baseUrl: previous.stage3Api?.baseUrl ?? '' },
+            s1: { apiKey: previous.stage1Api?.apiKey ?? '', baseUrl: previous.stage1Api?.baseUrl ?? '', model: previous.stage1Api?.model ?? '' },
+            s3: { apiKey: previous.stage3Api?.apiKey ?? '', baseUrl: previous.stage3Api?.baseUrl ?? '', model: previous.stage3Api?.model ?? '' },
         };
         const sanitized = sanitizeApiBlocks(data);
         context.extensionSettings[MODULE_NAME] = sanitized;
@@ -217,12 +218,13 @@ async function importSettings(event) {
             if (context.extensionSettings[MODULE_NAME][key] && typeof context.extensionSettings[MODULE_NAME][key] === 'object') {
                 context.extensionSettings[MODULE_NAME][key].apiKey = value.apiKey;
                 context.extensionSettings[MODULE_NAME][key].baseUrl = value.baseUrl;
+                context.extensionSettings[MODULE_NAME][key].model = value.model;
             }
         }
         saveSettings();
         loadSettingsIntoUi();
         ensureAllMacrosRegistered();
-        toastr.success('LE Eternalism: settings imported (current API keys and base URLs kept).');
+        toastr.success('LE Eternalism: settings imported (current API keys, base URLs and models kept).');
         log('Settings imported.');
     } catch (error) {
         toastr.error(`LE Eternalism import failed: ${error.message}`);
