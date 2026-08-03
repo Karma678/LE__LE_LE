@@ -32,7 +32,7 @@ If no include/exclude directives are found, all enabled library modules are used
 
 All settings are in **Settings → Extensions → "LE_ETERNALISM"**:
 
-- **Auto-run Stage 1 analysis when a message is sent** — runs the analysis (and variable application) before the preset generates; applies to **Normal**, **Continue**, **Swipe**, and **Regenerate** generations.
+- **Auto-run Stage 1 analysis** — always enabled; runs the analysis (and variable application) before the preset generates, for **Normal**, **Continue**, **Swipe**, and **Regenerate** generations.
 - **Debug mode** — pauses after Stage 1 and shows the analysis output plus the parsed directives in a popup; after you accept it, the Stage 2 prompt preview opens automatically before the request is sent (or abort).
 - **View last Stage 2 prompt** — displays the fully combined prompt from the last generation (macros resolved).
 - **Post-process the generated reply (Stage 3 recheck)** — on by default; the very last AI message is sent to the Stage 3 prompt and the formatted result replaces it in chat.

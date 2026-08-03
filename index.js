@@ -149,6 +149,7 @@ function getSettings() {
     if (!Array.isArray(settings.library)) {
         settings.library = [];
     }
+    settings.enabled = true;
     return settings;
 }
 
@@ -1087,7 +1088,6 @@ function bindApiBlock(prefix) {
 function loadSettingsIntoUi() {
     const settings = getSettings();
     document.getElementById('le_eternalism_master').checked = !!settings.masterEnabled;
-    document.getElementById('le_eternalism_enabled').checked = !!settings.enabled;
     document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
     document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
@@ -1104,7 +1104,6 @@ function loadSettingsIntoUi() {
 function collectSettingsFromUi() {
     const settings = getSettings();
     settings.masterEnabled = document.getElementById('le_eternalism_master').checked;
-    settings.enabled = document.getElementById('le_eternalism_enabled').checked;
     settings.debugMode = document.getElementById('le_eternalism_debug').checked;
     settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
@@ -1125,7 +1124,6 @@ async function initExtension() {
         $('#extensions_settings2').append(settingsHtml);
 
         document.getElementById('le_eternalism_master').addEventListener('change', collectSettingsFromUi);
-        document.getElementById('le_eternalism_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_post_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_analysis1').addEventListener('input', () => {
