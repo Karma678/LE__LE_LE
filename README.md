@@ -1,6 +1,6 @@
 # LE_ETERNALISM
 
-A SillyTavern extension that analyzes the current scene of your roleplay before the AI replies, activates the right rules for the moment, and polishes the final message.
+A SillyTavern extension for creating macro variables that are included via contextual analysis. 
 
 ![Screenshot placeholder: extension settings panel]()
 
@@ -12,15 +12,13 @@ In SillyTavern, open the **Extensions** drawer (cubes icon), click **Install ext
 https://github.com/um5130384-cmd/LE_ETERNALISM
 ```
 
-After installation, **restart or hard-reload SillyTavern** (Ctrl+Shift+R). The extension is enabled by default; toggle it off anytime with **Enable LE_ETERNALISM** at the top of its settings.
-
 ## How it works
 
 The extension adds three steps around your normal SillyTavern generation:
 
-1. **Stage 1 — Scene analysis.** Before the AI replies, a separate request analyzes the scene (chat history + your two analysis prompts). Based on the result, the extension activates the matching rules for this moment.
-2. **Stage 2 — Generation.** SillyTavern generates normally with your preset. Nothing is replaced or rewritten — your preset keeps working as usual.
-3. **Stage 3 — Post-processing.** After the reply is generated, it is sent once more with your formatting prompts, and the polished version replaces the message in chat.
+1. **Stage 1 — Scene analysis.** Before the AI replies, a separate request analyzes the scene (chat history + your two analysis prompts). Based on the result, the extension activates the matching macro prompts for this scene.
+2. **Stage 2 — Generation.** SillyTavern generates normally with your preset. Nothing is replaced or rewritten — your preset keeps working as usual but with enabled or disabled macro prompts.
+3. **Stage 3 — Post-processing. (Optional step)** After the reply is generated, it is sent once more with your formatting prompts, and the polished version replaces the message in chat.
 
 ![Screenshot placeholder: the three stages flow]()
 
