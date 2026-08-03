@@ -335,13 +335,22 @@ function applyVariables(selected) {
     const context = SillyTavern.getContext();
     const settings = getSettings();
     const selectedNames = new Set(selected.map(p => p.name.trim().toLowerCase()));
+    const partsByVariable = new Map();
     for (const module of settings.library) {
         const variable = normalizeVariable(module.variable);
         if (!variable) {
             continue;
         }
-        const isSelected = module.enabled && module.name && selectedNames.has(module.name.trim().toLowerCase());
-        const value = isSelected ? module.prompt : '';
+        if (module.enabled && module.name && selectedNames.has(module.name.trim().toLowerCase())) {
+            const parts = partsByVariable.get(variable) ?? [];
+            parts.push(module.prompt);
+            partsByVariable.set(variable, parts);
+        }
+    }
+    const variables = new Set(settings.library.map(m => normalizeVariable(m.variable)).filter(Boolean));
+    for (const variable of variables) {
+        const parts = partsByVariable.get(variable);
+        const value = parts && parts.length > 0 ? parts.join('\n\n') : '';
         activeModuleVariables.set(variable, value);
         ensureMacroRegistered(variable);
         try {
@@ -349,7 +358,7 @@ function applyVariables(selected) {
         } catch (error) {
             console.warn(`[LE Eternalism] Could not set variable ${variable}:`, error);
         }
-        log(`Variable "${variable}" ${isSelected ? 'set to module content' : "cleared ('')."}`);
+        log(`Variable "${variable}" ${value ? `set to ${parts.length} module(s) content` : "cleared ('')."}`);
     }
 }
 
