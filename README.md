@@ -2,8 +2,6 @@
 
 A SillyTavern extension for creating macro variables that are included via contextual analysis. 
 
-![Screenshot placeholder: extension settings panel]()
-
 ## Installation
 
 In SillyTavern, open the **Extensions** drawer (cubes icon), click **Install extension**, and enter:
@@ -20,8 +18,6 @@ The extension adds three steps around your normal SillyTavern generation:
 2. **Stage 2 — Generation.** SillyTavern generates normally with your preset. Nothing is replaced or rewritten — your preset keeps working as usual but with enabled or disabled macro prompts.
 3. **Stage 3 — Post-processing. (Optional step)** After the reply is generated, it is sent once more with your formatting prompts, and the polished version replaces the message in chat.
 
-![Screenshot placeholder: the three stages flow]()
-
 ## First-time setup
 
 1. Open **Settings → Extensions → "LE_ETERNALISM"**.
@@ -30,18 +26,20 @@ The extension adds three steps around your normal SillyTavern generation:
 4. Write your **Stage 3** prompts (formatting commands + checklist).
 5. Send a message and check the log panel at the bottom to see what the extension did.
 
-![Screenshot placeholder: macro library dropdown]()
-
 ## Macro library
 
-The library holds named modules ("macros") that Stage 1 can activate. Each module has:
+The library holds named modules ("macros") that Stage 1 can activate.
 
-- **Name** — the module's identifier.
-- **Variable** — a short name (e.g. `violence`). To place the module's text into your preset prompt, insert the tag `[[le_violence]]` (using your variable's name) where you want it to appear.
-- **Trigger** — a command the analyzer must output for the module to activate, e.g. `[include: Combat Rules]`. If the trigger is empty, the module follows `[include: ...]` / `[exclude: ...]` directives instead (with no directives, all enabled modules are active).
-- **Prompt** — the text that gets injected when the module is active.
+<img width="1000" height="391" alt="macro editing" src="https://github.com/user-attachments/assets/f9060d9f-cabf-411f-8d6b-687f6456d262" />
 
-Select a macro from the **Choose macro...** dropdown to edit or delete it; **+ Add** creates a new one (an empty new macro is removed automatically if you close it without editing).
+Each module has in editing:
+
+- **Prompt name** — the macro's identifier (just a name for convenience).
+- **Variable** — a short name (e.g. `violence`). To place the macro's text into your preset prompt, insert the tag `[[le_violence]]` (using your variable's name) where you want it to appear.
+- **Trigger** — a command the analyzer must output for the macro to activate, e.g. `[include: Combat Rules]`. If the trigger is empty, the macro will be active automatically.
+- **Prompt** — the text that gets injected when the macro is active.
+
+Select a macro from the **Choose macro...** dropdown to edit or delete it; **+ Add** creates a new one.
 
 ## Settings reference
 
@@ -49,16 +47,13 @@ Select a macro from the **Choose macro...** dropdown to edit or delete it; **+ A
 - **Stage 1 — history depth** — how many of the most recent chat messages the analyzer sees (0 = unlimited).
 - **Stage 1 / Stage 3 — use a different API/model** — run that stage on its own backend (base URL, API key, model). If enabled, the fields must be filled correctly, otherwise the run is stopped with an error.
 - **Post-processing (Stage 3)** — on by default; toggle to disable.
-- **Save / Export / Import settings** — export saves everything except API keys, provider addresses, and models; import restores your settings while keeping your current connection data.
-
-![Screenshot placeholder: export/import buttons]()
+- **Save / Export / Import settings** — export saves everything (except API keys, provider addresses, and models); import restores your settings.
 
 ## In-chat features
 
-- After Stage 3, a **clock icon** appears on the latest message (before the ellipsis) — click it to switch between the original and the post-processed version.
-- If you stop a swipe/regenerate while the model is still thinking, the message stays empty with the reasoning visible — the old text is not shown.
+- After Stage 3, a **clock icon** appears on the latest message (before the ellipsis) — click it to switch between the original and the post-processed version. After refreshing page button will disspear.
 
 ## Tips
 
 - The analyzer re-checks the scene on every message, so rules switch on and off automatically as the story changes.
-- Works out of the box with the LE_EMOTIONALISM preset (e.g. the "Hyper Violence" module maps to the `violence` variable).
+- To find errors in your editing look at console of extension.
