@@ -53,11 +53,24 @@ async function rawGenerate(params) {
     }
 }
 
-function isCustomApiConfigured(config) {
-    return !!(config?.enabled
-        && String(config.baseUrl ?? '').trim()
-        && String(config.model ?? '').trim()
-        && String(config.apiKey ?? '').trim());
+function isCustomApiEnabled(config) {
+    return !!config?.enabled;
+}
+
+function validateCustomApiConfig(config, stageName) {
+    const missing = [];
+    if (!String(config.baseUrl ?? '').trim()) {
+        missing.push('Base URL');
+    }
+    if (!String(config.apiKey ?? '').trim()) {
+        missing.push('API key');
+    }
+    if (!String(config.model ?? '').trim()) {
+        missing.push('Model');
+    }
+    if (missing.length > 0) {
+        throw new Error(`${stageName}: custom API is enabled, but ${missing.join(', ')} is missing.`);
+    }
 }
 
 async function customChatCompletion(config, messages, signal = null) {
@@ -395,16 +408,31 @@ async function runAnalysisAndApply(reason) {
             content: 'Analyze the scene above. Reply with your commands only.',
         });
         let analysis;
+        let usingCustom = false;
         try {
-            analysis = isCustomApiConfigured(settings.stage1Api)
-                ? await customChatCompletion(settings.stage1Api, stage1Messages, abortController.signal)
-                : await rawGenerate({
+            if (isCustomApiEnabled(settings.stage1Api)) {
+                usingCustom = true;
+                validateCustomApiConfig(settings.stage1Api, 'Stage 1');
+                analysis = await customChatCompletion(settings.stage1Api, stage1Messages, abortController.signal);
+            } else {
+                analysis = await rawGenerate({
                     prompt: stage1Messages,
                 });
+            }
         } catch (error) {
             if (stage1Cancelled || abortController.signal.aborted) {
                 toastr.info('LE Eternalism: Stage 1 cancelled.');
                 log('Stage 1 cancelled by user.');
+                return false;
+            }
+            if (usingCustom) {
+                try {
+                    context.stopGeneration();
+                } catch (stopError) {
+                    console.warn('[LE Eternalism] Could not stop generation:', stopError);
+                }
+                toastr.error(`LE Eternalism: Stage 1 custom API error — generation cancelled. ${error.message}`);
+                log(`Stage 1 custom API failed, generation cancelled: ${error}`);
                 return false;
             }
             throw error;
@@ -541,7 +569,8 @@ async function postProcessMessage(messageId, type) {
 
         let formatted;
         try {
-            if (isCustomApiConfigured(settings.stage3Api)) {
+            if (isCustomApiEnabled(settings.stage3Api)) {
+                validateCustomApiConfig(settings.stage3Api, 'Stage 3');
                 formatted = await customChatCompletion(settings.stage3Api, messages, abortController.signal);
             } else {
                 formatted = await rawGenerate({
@@ -552,6 +581,11 @@ async function postProcessMessage(messageId, type) {
             if (stage3Cancelled || abortController.signal.aborted) {
                 toastr.info('LE Eternalism: Stage 3 cancelled — keeping the original message.');
                 log('Stage 3 cancelled by user.');
+                return;
+            }
+            if (isCustomApiEnabled(settings.stage3Api)) {
+                toastr.error(`LE Eternalism: Stage 3 custom API error — original message kept. ${error.message}`);
+                log(`Stage 3 custom API failed: ${error}`);
                 return;
             }
             throw error;
