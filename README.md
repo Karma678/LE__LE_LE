@@ -1,6 +1,8 @@
 # LE_ETERNALISM
 
-A SillyTavern extension that runs a scene-analysis pipeline in front of your existing roleplay preset and feeds its results into the preset's variables.
+A SillyTavern extension that analyzes the current scene of your roleplay before the AI replies, activates the right rules for the moment, and polishes the final message.
+
+![Screenshot placeholder: extension settings panel]()
 
 ## Installation
 
@@ -10,41 +12,55 @@ In SillyTavern, open the **Extensions** drawer (cubes icon), click **Install ext
 https://github.com/um5130384-cmd/LE_ETERNALISM
 ```
 
-Alternatively, copy this whole folder into `SillyTavern/public/scripts/extensions/third-party/LE_ETERNALISM` and restart SillyTavern.
+After installation, **restart or hard-reload SillyTavern** (Ctrl+Shift+R). The extension is enabled by default; toggle it off anytime with **Enable LE_ETERNALISM** at the top of its settings.
 
 ## How it works
 
-**Stage 1 — Scene analysis.** When a message is sent (auto-run mode) or the **Run analysis now** button is pressed, the extension sends a request consisting of two separate system messages (*system prompt 1*: analysis commands, *system prompt 2*: thinking checklist) plus the chat history as proper role messages (player messages = `user`, AI messages = `assistant`, speaker name embedded in each message's content; no persona/character card/world info/preset prompts). The AI replies with `[include: Name]` / `[exclude: Name]` directives (comma-separated names allowed).
+The extension adds three steps around your normal SillyTavern generation:
 
-**Apply variables.** For every prompt-library module that has a **preset variable** configured (e.g. `violence`), the extension:
-- replaces the `[[le_<variable>]]` tag (e.g. `[[le_violence]]`) in the final chat-completion prompt with the module's text when the module is active, and removes the tag when inactive — the same injection mechanism as Megumin's `[[main_prompt]]` (hooked at `CHAT_COMPLETION_PROMPT_READY`, immune to ST's macro engine);
-- also registers a `{{le_<variable>}}` macro as a fallback where macros resolve, and writes the text to the chat variable.
+1. **Stage 1 — Scene analysis.** Before the AI replies, a separate request analyzes the scene (chat history + your two analysis prompts). Based on the result, the extension activates the matching rules for this moment.
+2. **Stage 2 — Generation.** SillyTavern generates normally with your preset. Nothing is replaced or rewritten — your preset keeps working as usual.
+3. **Stage 3 — Post-processing.** After the reply is generated, it is sent once more with your formatting prompts, and the polished version replaces the message in chat.
 
-**Module activation.** A module with a **trigger command** (e.g. `[include: Combat Rules]`, one per line) activates only when that command appears in the Stage 1 output — otherwise its content is empty. Modules without a trigger follow the `[include: ...]` / `[exclude: ...]` directives instead (no directives = all enabled modules active).
+![Screenshot placeholder: the three stages flow]()
 
-**Stage 2 — Generation.** SillyTavern generates normally with your preset (the preset IS Stage 2; the extension does not generate or replace the reply).
+## First-time setup
 
-**Stage 3 — Post-process (on by default).** After the AI reply is generated, the extension takes the very last AI message only and sends it as a user message together with two separate system prompts (*Stage 3 — System prompt 1*: formatting commands, *Stage 3 — System prompt 2*: thinking checklist), then replaces the message in chat with the formatted result (applies to normal/continue/swipe/regenerate replies). In debug mode a preview window opens before the request is sent. Post-processed messages get a **clock "Go Back" icon** at the start of the message footer (before the ellipsis), added only when post-processing completes: clicking it reverts to the original pre-Stage-3 text, clicking again re-applies the processed version. The icon is removed from older messages once a new AI response appears. On swipe/regenerate, the previous message text is not shown while the model is still thinking — an empty slot is used, so stopping mid-think leaves an empty body with the reasoning intact.
+1. Open **Settings → Extensions → "LE_ETERNALISM"**.
+2. Write your **Stage 1** prompts (system prompt 1: analysis commands, system prompt 2: thinking checklist).
+3. Add **macro modules** to the library (see below) — e.g. combat rules, sex rules, etc.
+4. Write your **Stage 3** prompts (formatting commands + checklist).
+5. Send a message and check the log panel at the bottom to see what the extension did.
 
-If no include/exclude directives are found, all enabled library modules are used. `[include: all]` explicitly selects all enabled modules. Excludes always win over includes.
+![Screenshot placeholder: macro library dropdown]()
 
-## Settings
+## Macro library
 
-All settings are in **Settings → Extensions → "LE_ETERNALISM"**:
+The library holds named modules ("macros") that Stage 1 can activate. Each module has:
 
-- **Auto-run Stage 1 analysis** — always enabled; runs the analysis (and variable application) before the preset generates, for **Normal**, **Continue**, **Swipe**, and **Regenerate** generations.
-- **Debug mode** — pauses after Stage 1 and shows the analysis output plus the parsed directives in a popup; after you accept it, the Stage 2 prompt preview opens automatically before the request is sent (or abort).
-- **View last Stage 2 prompt** — displays the fully combined prompt from the last generation (macros resolved).
-- **Post-process the generated reply (Stage 3 recheck)** — on by default; the very last AI message is sent to the Stage 3 prompt and the formatted result replaces it in chat.
-- **Stage 1 — System prompt 1** (analysis commands) and **Stage 1 — System prompt 2** (thinking checklist).
-- **Stage 1 history depth** — how many of the most recent chat messages are sent to the analyzer (0 = unlimited).
-- **Stage 1 / Stage 3 — use a different API/model** — each stage can run on its own Chat Completion backend (base URL, API key, model, max tokens, temperature) via SillyTavern's own backend proxy (`ChatCompletionService`). Leave unchecked to use the main API.
-- **Stage 3 post-process prompt** — used only when post-processing is enabled.
-- **Prompt library** — sits inside the Stage 1 section: a dropdown lists all modules (name + variable + trigger + text + enabled); select one to edit it in a window, "+ Add" creates a new one. A new module that is closed without a name or content is removed automatically.
-- **Save / Export / Import settings** — Save persists immediately; Export downloads a JSON file with the API keys and base URLs removed; Import restores from such a file while keeping your current API keys and base URLs.
+- **Name** — the module's identifier.
+- **Variable** — a short name (e.g. `violence`). To place the module's text into your preset prompt, insert the tag `[[le_violence]]` (using your variable's name) where you want it to appear.
+- **Trigger** — a command the analyzer must output for the module to activate, e.g. `[include: Combat Rules]`. If the trigger is empty, the module follows `[include: ...]` / `[exclude: ...]` directives instead (with no directives, all enabled modules are active).
+- **Prompt** — the text that gets injected when the module is active.
 
-## Notes
+Select a macro from the **Choose macro...** dropdown to edit or delete it; **+ Add** creates a new one (an empty new macro is removed automatically if you close it without editing).
 
-- The pipeline re-decides included modules on every message (no persistent scene state yet).
-- Carriage returns are stripped from all request content.
-- Works with the LE_EMOTIONALISM preset: the "Hyper Violence" module maps to the `violence` variable.
+## Settings reference
+
+- **Debug mode** — pauses after Stage 1 to show the analyzer's output; after you confirm, previews of the Stage 2 and Stage 3 requests open before they are sent.
+- **Stage 1 — history depth** — how many of the most recent chat messages the analyzer sees (0 = unlimited).
+- **Stage 1 / Stage 3 — use a different API/model** — run that stage on its own backend (base URL, API key, model). If enabled, the fields must be filled correctly, otherwise the run is stopped with an error.
+- **Post-processing (Stage 3)** — on by default; toggle to disable.
+- **Save / Export / Import settings** — export saves everything except API keys, provider addresses, and models; import restores your settings while keeping your current connection data.
+
+![Screenshot placeholder: export/import buttons]()
+
+## In-chat features
+
+- After Stage 3, a **clock icon** appears on the latest message (before the ellipsis) — click it to switch between the original and the post-processed version.
+- If you stop a swipe/regenerate while the model is still thinking, the message stays empty with the reasoning visible — the old text is not shown.
+
+## Tips
+
+- The analyzer re-checks the scene on every message, so rules switch on and off automatically as the story changes.
+- Works out of the box with the LE_EMOTIONALISM preset (e.g. the "Hyper Violence" module maps to the `violence` variable).
