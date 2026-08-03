@@ -32,7 +32,7 @@ The library holds named modules ("macros") that Stage 1 can activate.
 
 <img width="1000" height="391" alt="macro editing" src="https://github.com/user-attachments/assets/f9060d9f-cabf-411f-8d6b-687f6456d262" />
 
-Each module has in editing:
+Each macro has in editing:
 
 - **Prompt name** — the macro's identifier (just a name for convenience).
 - **Variable** — a short name (e.g. `violence`). To place the macro's text into your preset prompt, insert the tag `[[le_violence]]` (using your variable's name) where you want it to appear.
@@ -40,6 +40,11 @@ Each module has in editing:
 - **Prompt** — the text that gets injected when the macro is active.
 
 Select a macro from the **Choose macro...** dropdown to edit or delete it; **+ Add** creates a new one.
+
+## How to insert macro?
+
+Insert in preset prompts registered macro:
+`[[le_<variable>]]`
 
 ## Settings reference
 
