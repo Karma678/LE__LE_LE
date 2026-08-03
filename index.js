@@ -323,6 +323,33 @@ function parseAnalysisResult(text) {
     return { includes, excludes };
 }
 
+function splitTriggers(text) {
+    const parts = [];
+    let current = '';
+    let depth = 0;
+    const source = String(text ?? '');
+    for (let i = 0; i < source.length; i++) {
+        const ch = source[i];
+        if (ch === '[') {
+            depth++;
+        } else if (ch === ']') {
+            depth = Math.max(0, depth - 1);
+        }
+        if ((ch === ',' || ch === '\n' || ch === '\r') && depth === 0) {
+            if (current.trim()) {
+                parts.push(current.trim());
+            }
+            current = '';
+            continue;
+        }
+        current += ch;
+    }
+    if (current.trim()) {
+        parts.push(current.trim());
+    }
+    return parts;
+}
+
 function selectIncludedPrompts(includes, excludes, analysisText) {
     const settings = getSettings();
     const lowerAnalysis = String(analysisText ?? '').toLowerCase();
@@ -331,10 +358,7 @@ function selectIncludedPrompts(includes, excludes, analysisText) {
     const excludedNames = new Set([...excludes].map(n => String(n).toLowerCase()));
 
     return library.filter(module => {
-        const triggers = String(module.trigger ?? '')
-            .split(/\r?\n/)
-            .map(t => t.trim())
-            .filter(Boolean);
+        const triggers = splitTriggers(module.trigger);
         if (triggers.length > 0) {
             return triggers.some(t => lowerAnalysis.includes(t.toLowerCase()));
         }
@@ -1034,7 +1058,7 @@ async function openLibraryEditor(index) {
             <input type="text" id="le_eternalism_lib_name" class="text_pole" placeholder="Prompt name">
             <div class="flex-container alignItemsCenter flexGap5">
                 <input type="text" id="le_eternalism_lib_variable" class="text_pole flex1" placeholder="variable (e.g. violence)">
-                <input type="text" id="le_eternalism_lib_trigger" class="text_pole flex1" placeholder="trigger (e.g. [include: Combat Rules])">
+                <input type="text" id="le_eternalism_lib_trigger" class="text_pole flex1" placeholder="trigger1, trigger2, ... (comma-separated)">
             </div>
             <label class="checkbox_label"><input type="checkbox" id="le_eternalism_lib_enabled"> <span>Enabled</span></label>
             <label class="le_eternalism_hint">Macro prompt</label>
