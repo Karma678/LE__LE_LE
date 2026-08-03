@@ -943,9 +943,7 @@ function renderLibrarySelector() {
         option.textContent = (prompt.name && prompt.name.trim()) ? prompt.name : `(unnamed ${index + 1})`;
         select.appendChild(option);
     });
-    if (settings.library.length > 0) {
-        select.selectedIndex = settings.library.length - 1;
-    }
+    select.selectedIndex = -1;
 }
 
 async function openLibraryEditor(index) {
@@ -1136,6 +1134,7 @@ async function initExtension() {
         document.getElementById('le_eternalism_library_select').addEventListener('change', () => {
             const select = document.getElementById('le_eternalism_library_select');
             const index = Number(select.value);
+            select.selectedIndex = -1;
             if (Number.isFinite(index) && index >= 0) {
                 openLibraryEditor(index).catch(error => {
                     console.error('[LE Eternalism] Library editor error:', error);
