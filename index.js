@@ -539,10 +539,17 @@ async function runAnalysisAndApply(reason) {
             log('Stage 1: no player card available.');
         }
         stage1Messages.push(...historyMessages);
-        stage1Messages.push({
-            role: 'user',
-            content: 'Analyze the scene above. Reply with your commands only.',
-        });
+        const latestUserMessage = [...context.chat].reverse().find(m => m.is_user && typeof m.mes === 'string' && m.mes.trim().length > 0);
+        if (latestUserMessage) {
+            const latestText = clean(latestUserMessage.mes);
+            stage1Messages.push({
+                role: 'user',
+                content: `<latest_context>\n${latestText}\n</latest_context>`,
+            });
+            log(`Stage 1: latest user message appended (${latestText.length} chars).`);
+        } else {
+            log('Stage 1: no latest user message found.');
+        }
 
         if (settings.debugMode) {
             const applied = await previewStage2Messages(stage1Messages, 'Stage 1 prompt preview');
@@ -1242,7 +1249,7 @@ function updateStage1Preview() {
     parts.push('[Character card]\n<npc_card>... character description ...</npc_card>');
     parts.push('[Player card]\n<player_card>... player persona ...</player_card>');
     parts.push('[Chat history]\n...alternating messages: player = user role, AI = assistant role...');
-    parts.push('[User: closing instruction]\nAnalyze the scene above. Reply with your commands only.');
+    parts.push('[Latest user message]\n<latest_context>... most recent player message ...</latest_context>');
     previewEl.textContent = parts.join('\n\n');
 }
 
