@@ -543,6 +543,27 @@ async function runAnalysisAndApply(reason) {
             role: 'user',
             content: 'Analyze the scene above. Reply with your commands only.',
         });
+
+        if (settings.debugMode) {
+            const applied = await previewStage2Messages(stage1Messages, 'Stage 1 prompt preview');
+            if (applied === null) {
+                log('Stage 1 preview cancelled.');
+                try {
+                    context.stopGeneration();
+                } catch (stopError) {
+                    console.warn('[LE Eternalism] Could not stop generation:', stopError);
+                }
+                toastr.info('LE Eternalism: generation cancelled.');
+                return false;
+            }
+            if (applied === false) {
+                toastr.warning('LE Eternalism: edits not applied (message structure changed). Sending the original Stage 1 prompt.');
+                log('Stage 1 preview edits not applied — sending the original prompt.');
+            } else {
+                log('Stage 1 preview confirmed.');
+            }
+        }
+
         let analysis;
         let reasoning = '';
         let usingCustom = false;
