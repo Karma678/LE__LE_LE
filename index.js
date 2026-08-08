@@ -420,6 +420,60 @@ function applyVariables(selected) {
     }
 }
 
+function buildCharacterCard() {
+    const context = SillyTavern.getContext();
+    const char = context.characters?.[context.characterId];
+    if (!char) {
+        return '';
+    }
+    const parts = [];
+    if (String(char.name ?? '').trim()) {
+        parts.push(`Name: ${String(char.name).trim()}`);
+    }
+    if (String(char.description ?? '').trim()) {
+        parts.push(`Description:\n${String(char.description).trim()}`);
+    }
+    if (String(char.personality ?? '').trim()) {
+        parts.push(`Personality:\n${String(char.personality).trim()}`);
+    }
+    if (String(char.scenario ?? '').trim()) {
+        parts.push(`Scenario:\n${String(char.scenario).trim()}`);
+    }
+    if (String(char.mes_example ?? '').trim()) {
+        parts.push(`Example messages:\n${String(char.mes_example).trim()}`);
+    }
+    if (String(char.system_prompt ?? '').trim()) {
+        parts.push(`System prompt:\n${String(char.system_prompt).trim()}`);
+    }
+    if (String(char.post_history_instructions ?? '').trim()) {
+        parts.push(`Post-history instructions:\n${String(char.post_history_instructions).trim()}`);
+    }
+    if (String(char.creator_notes ?? '').trim()) {
+        parts.push(`Creator notes:\n${String(char.creator_notes).trim()}`);
+    }
+    if (parts.length === 0) {
+        return '';
+    }
+    return `<npc_card>\n${parts.join('\n\n')}\n</npc_card>`;
+}
+
+function buildPlayerCard() {
+    const context = SillyTavern.getContext();
+    const persona = String(context.powerUserSettings?.persona_description ?? '').trim();
+    const name = String(context.name1 ?? '').trim();
+    if (!persona && !name) {
+        return '';
+    }
+    const parts = [];
+    if (name) {
+        parts.push(`Name: ${name}`);
+    }
+    if (persona) {
+        parts.push(`Description:\n${persona}`);
+    }
+    return `<player_card>\n${parts.join('\n\n')}\n</player_card>`;
+}
+
 async function runAnalysisAndApply(reason) {
     const context = SillyTavern.getContext();
     const settings = getSettings();
@@ -470,6 +524,20 @@ async function runAnalysisAndApply(reason) {
     try {
         const historyMessages = await buildStage1History();
         const stage1Messages = stage1SystemPrompts.map(p => ({ role: 'system', content: p }));
+        const npcCard = buildCharacterCard();
+        const playerCard = buildPlayerCard();
+        if (npcCard) {
+            stage1Messages.push({ role: 'system', content: npcCard });
+            log(`Stage 1: character card added (${npcCard.length} chars).`);
+        } else {
+            log('Stage 1: no character card available.');
+        }
+        if (playerCard) {
+            stage1Messages.push({ role: 'system', content: playerCard });
+            log(`Stage 1: player card added (${playerCard.length} chars).`);
+        } else {
+            log('Stage 1: no player card available.');
+        }
         stage1Messages.push(...historyMessages);
         stage1Messages.push({
             role: 'user',
@@ -1150,6 +1218,8 @@ function updateStage1Preview() {
     if (p2) {
         parts.push(`[System prompt 2]\n${p2}`);
     }
+    parts.push('[Character card]\n<npc_card>... character description ...</npc_card>');
+    parts.push('[Player card]\n<player_card>... player persona ...</player_card>');
     parts.push('[Chat history]\n...alternating messages: player = user role, AI = assistant role...');
     parts.push('[User: closing instruction]\nAnalyze the scene above. Reply with your commands only.');
     previewEl.textContent = parts.join('\n\n');
