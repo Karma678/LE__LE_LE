@@ -523,7 +523,7 @@ async function runAnalysisAndApply(reason) {
     log(`Analysis started (${reason}).`);
     try {
         const historyMessages = await buildStage1History();
-        const stage1Messages = stage1SystemPrompts.map(p => ({ role: 'system', content: p }));
+        const stage1Messages = [];
         const npcCard = buildCharacterCard();
         const playerCard = buildPlayerCard();
         if (npcCard) {
@@ -549,6 +549,9 @@ async function runAnalysisAndApply(reason) {
             log(`Stage 1: latest user message appended (${latestText.length} chars).`);
         } else {
             log('Stage 1: no latest user message found.');
+        }
+        for (const prompt of stage1SystemPrompts) {
+            stage1Messages.push({ role: 'system', content: prompt });
         }
 
         if (settings.debugMode) {
@@ -1240,16 +1243,16 @@ function updateStage1Preview() {
     const p1 = document.getElementById('le_eternalism_analysis1').value.trim();
     const p2 = document.getElementById('le_eternalism_analysis2').value.trim();
     const parts = [];
+    parts.push('[Character card]\n<npc_card>... character description ...</npc_card>');
+    parts.push('[Player card]\n<player_card>... player persona ...</player_card>');
+    parts.push('[Chat history]\n...alternating messages: player = user role, AI = assistant role...');
+    parts.push('[Latest user message]\n<latest_context>... most recent player message ...</latest_context>');
     if (p1) {
         parts.push(`[System prompt 1]\n${p1}`);
     }
     if (p2) {
         parts.push(`[System prompt 2]\n${p2}`);
     }
-    parts.push('[Character card]\n<npc_card>... character description ...</npc_card>');
-    parts.push('[Player card]\n<player_card>... player persona ...</player_card>');
-    parts.push('[Chat history]\n...alternating messages: player = user role, AI = assistant role...');
-    parts.push('[Latest user message]\n<latest_context>... most recent player message ...</latest_context>');
     previewEl.textContent = parts.join('\n\n');
 }
 
