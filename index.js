@@ -1,5 +1,14 @@
 const MODULE_NAME = 'le_eternalism';
 
+let regexEnginePromise = null;
+
+function getRegexEngine() {
+    if (!regexEnginePromise) {
+        regexEnginePromise = import('../../regex/engine.js').catch(() => null);
+    }
+    return regexEnginePromise;
+}
+
 const defaultSettings = {
     enabled: false,
     debugMode: false,
@@ -376,17 +385,28 @@ async function buildStage1History() {
     const context = SillyTavern.getContext();
     const settings = getSettings();
     const depth = Number(settings.stage1HistoryDepth) || 0;
+    const engine = await getRegexEngine();
     const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
-    const toMessage = m => ({
-        role: m.is_user ? 'user' : 'assistant',
-        content: clean(`${m.name || (m.is_user ? context.name1 : context.name2)}: ${m.mes}`),
-    });
+    const toMessage = (m, messageIndex, total) => {
+        let mes = clean(m.mes);
+        if (engine) {
+            const placement = m.is_user ? engine.regex_placement.USER_INPUT : engine.regex_placement.AI_OUTPUT;
+            mes = engine.getRegexedString(mes, placement, {
+                isPrompt: true,
+                depth: total - messageIndex - 1,
+            });
+        }
+        return {
+            role: m.is_user ? 'user' : 'assistant',
+            content: clean(`${m.name || (m.is_user ? context.name1 : context.name2)}: ${mes}`),
+        };
+    };
     if (depth <= 0) {
-        return messages.map(toMessage);
+        return messages.map((m, i) => toMessage(m, i, messages.length));
     }
     const selected = messages.slice(-depth);
     log(`Stage 1 history: ${selected.length} message(s) (depth ${depth}).`);
-    return selected.map(toMessage);
+    return selected.map((m, i) => toMessage(m, i, selected.length));
 }
 
 function applyVariables(selected) {
@@ -539,9 +559,16 @@ async function runAnalysisAndApply(reason) {
             log('Stage 1: no player card available.');
         }
         stage1Messages.push(...historyMessages);
+        const engine = await getRegexEngine();
         const latestUserMessage = [...context.chat].reverse().find(m => m.is_user && typeof m.mes === 'string' && m.mes.trim().length > 0);
         if (latestUserMessage) {
-            const latestText = clean(latestUserMessage.mes);
+            let latestText = clean(latestUserMessage.mes);
+            if (engine) {
+                latestText = engine.getRegexedString(latestText, engine.regex_placement.USER_INPUT, {
+                    isPrompt: true,
+                    depth: 0,
+                });
+            }
             stage1Messages.push({
                 role: 'user',
                 content: `<latest_context>\n${latestText}\n</latest_context>`,
