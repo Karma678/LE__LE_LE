@@ -381,12 +381,15 @@ function selectIncludedPrompts(includes, excludes, analysisText) {
     });
 }
 
-async function buildStage1History() {
+async function buildStage1History(genType) {
     const context = SillyTavern.getContext();
     const settings = getSettings();
     const depth = Number(settings.stage1HistoryDepth) || 0;
     const engine = await getRegexEngine();
-    const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
+    let messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
+    if (genType === 'swipe' || genType === 'regenerate') {
+        messages = messages.slice(0, -1);
+    }
     const toMessage = (m, messageIndex, total) => {
         let mes = clean(m.mes);
         if (engine) {
@@ -494,7 +497,7 @@ function buildPlayerCard() {
     return `<player_card>\n${parts.join('\n\n')}\n</player_card>`;
 }
 
-async function runAnalysisAndApply(reason) {
+async function runAnalysisAndApply(reason, genType) {
     const context = SillyTavern.getContext();
     const settings = getSettings();
 
@@ -542,7 +545,7 @@ async function runAnalysisAndApply(reason) {
     });
     log(`Analysis started (${reason}).`);
     try {
-        const historyMessages = await buildStage1History();
+        const historyMessages = await buildStage1History(genType);
         const stage1Messages = [];
         const npcCard = buildCharacterCard();
         const playerCard = buildPlayerCard();
@@ -944,7 +947,7 @@ function handleGenerationStart(type, options, dryRun) {
     if (!getSettings().enabled) {
         return Promise.resolve();
     }
-    return runAnalysisAndApply('auto').catch(error => {
+    return runAnalysisAndApply('auto', type).catch(error => {
         toastr.error(`LE Eternalism analysis failed: ${error.message}`);
         log(`Analysis failed: ${error}`);
         return false;
