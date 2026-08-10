@@ -390,6 +390,12 @@ async function buildStage1History(genType) {
     if (genType === 'swipe' || genType === 'regenerate') {
         messages = messages.slice(0, -1);
     }
+    for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].is_user) {
+            messages.splice(i, 1);
+            break;
+        }
+    }
     const toMessage = (m, messageIndex, total) => {
         let mes = clean(m.mes);
         if (engine) {
