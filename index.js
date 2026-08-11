@@ -713,6 +713,10 @@ async function postProcessMessage(messageId, type) {
     const context = SillyTavern.getContext();
     const settings = getSettings();
 
+    if (type === 'first_message') {
+        log('Post-process skipped (first message/greeting).');
+        return;
+    }
     if (!settings.postProcessEnabled || !settings.masterEnabled) {
         log(`Post-process skipped (postProcessEnabled=${settings.postProcessEnabled}, masterEnabled=${settings.masterEnabled}).`);
         return;
