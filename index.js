@@ -953,6 +953,12 @@ function handleGenerationStart(type, options, dryRun) {
     if (!getSettings().enabled) {
         return Promise.resolve();
     }
+    const context = SillyTavern.getContext();
+    const hasUserMessage = Array.isArray(context.chat) && context.chat.some(m => m.is_user && typeof m.mes === 'string' && m.mes.trim().length > 0);
+    if (!hasUserMessage) {
+        log('Stage 1 skipped: no user message in the chat yet.');
+        return Promise.resolve();
+    }
     return runAnalysisAndApply('auto', type).catch(error => {
         toastr.error(`LE Eternalism analysis failed: ${error.message}`);
         log(`Analysis failed: ${error}`);
