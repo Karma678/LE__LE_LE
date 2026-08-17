@@ -41,6 +41,7 @@ const defaultSettings = {
         '</think>',
     ].join('\n'),
     stage1HistoryDepth: 50,
+    stage1Enabled: true,
     stage1Api: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
     stage3Api: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
     library: [],
@@ -957,6 +958,10 @@ function handleGenerationStart(type, options, dryRun) {
     if (!getSettings().enabled) {
         return Promise.resolve();
     }
+    if (getSettings().stage1Enabled === false) {
+        log('Stage 1 skipped (disabled).');
+        return Promise.resolve();
+    }
     const context = SillyTavern.getContext();
     const hasUserMessage = Array.isArray(context.chat) && context.chat.some(m => m.is_user && typeof m.mes === 'string' && m.mes.trim().length > 0);
     if (!hasUserMessage) {
@@ -1331,6 +1336,7 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_master').checked = !!settings.masterEnabled;
     document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
     document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
+    document.getElementById('le_eternalism_stage1_enabled').checked = settings.stage1Enabled !== false;
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
     document.getElementById('le_eternalism_post1').value = settings.postProcessPrompt1 ?? '';
@@ -1347,6 +1353,7 @@ function collectSettingsFromUi() {
     settings.masterEnabled = document.getElementById('le_eternalism_master').checked;
     settings.debugMode = document.getElementById('le_eternalism_debug').checked;
     settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
+    settings.stage1Enabled = document.getElementById('le_eternalism_stage1_enabled').checked;
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
     settings.postProcessPrompt1 = clean(document.getElementById('le_eternalism_post1').value);
@@ -1367,6 +1374,7 @@ async function initExtension() {
         document.getElementById('le_eternalism_master').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_post_enabled').addEventListener('change', collectSettingsFromUi);
+        document.getElementById('le_eternalism_stage1_enabled').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_analysis1').addEventListener('input', () => {
             collectSettingsFromUi();
             updateStage1Preview();

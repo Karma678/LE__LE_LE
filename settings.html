@@ -16,12 +16,6 @@
                 <span>Debug-mode</span>
             </label>
         </div>
-        <div class="flex-container alignItemsCenter flexGap5">
-            <label for="le_eternalism_post_enabled" class="checkbox_label">
-                <input id="le_eternalism_post_enabled" type="checkbox">
-                <span>Post-processing (Stage 3)</span>
-            </label>
-        </div>
 
         <div class="le_eternalism_section le_eternalism_section_stage1 inline-drawer">
             <div class="le_eternalism_section_header inline-drawer-toggle inline-drawer-header">
@@ -29,6 +23,13 @@
                 <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
             </div>
             <div class="inline-drawer-content">
+
+            <div class="flex-container alignItemsCenter flexGap5">
+                <label for="le_eternalism_stage1_enabled" class="checkbox_label">
+                    <input id="le_eternalism_stage1_enabled" type="checkbox">
+                    <span>Stage 1 — scene analysis</span>
+                </label>
+            </div>
 
             <div class="le_eternalism_hint">Macro library — modules that Stage 1 can activate.</div>
             <div class="flex-container alignItemsCenter flexGap5">
@@ -73,6 +74,13 @@
                 <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
             </div>
             <div class="inline-drawer-content">
+
+            <div class="flex-container alignItemsCenter flexGap5">
+                <label for="le_eternalism_post_enabled" class="checkbox_label">
+                    <input id="le_eternalism_post_enabled" type="checkbox">
+                    <span>Post-processing (Stage 3)</span>
+                </label>
+            </div>
 
             <label for="le_eternalism_post1">System prompt 1 (formatting commands)</label>
             <textarea id="le_eternalism_post1" class="text_pole" rows="4"></textarea>
