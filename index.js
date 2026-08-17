@@ -1336,7 +1336,10 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_master').checked = !!settings.masterEnabled;
     document.getElementById('le_eternalism_debug').checked = !!settings.debugMode;
     document.getElementById('le_eternalism_post_enabled').checked = !!settings.postProcessEnabled;
-    document.getElementById('le_eternalism_stage1_enabled').checked = settings.stage1Enabled !== false;
+    const stage1EnabledEl = document.getElementById('le_eternalism_stage1_enabled');
+    if (stage1EnabledEl) {
+        stage1EnabledEl.checked = settings.stage1Enabled !== false;
+    }
     document.getElementById('le_eternalism_analysis1').value = settings.analysisPrompt1 ?? '';
     document.getElementById('le_eternalism_analysis2').value = settings.analysisPrompt2 ?? '';
     document.getElementById('le_eternalism_post1').value = settings.postProcessPrompt1 ?? '';
@@ -1353,7 +1356,10 @@ function collectSettingsFromUi() {
     settings.masterEnabled = document.getElementById('le_eternalism_master').checked;
     settings.debugMode = document.getElementById('le_eternalism_debug').checked;
     settings.postProcessEnabled = document.getElementById('le_eternalism_post_enabled').checked;
-    settings.stage1Enabled = document.getElementById('le_eternalism_stage1_enabled').checked;
+    const stage1EnabledEl = document.getElementById('le_eternalism_stage1_enabled');
+    if (stage1EnabledEl) {
+        settings.stage1Enabled = stage1EnabledEl.checked;
+    }
     settings.analysisPrompt1 = clean(document.getElementById('le_eternalism_analysis1').value);
     settings.analysisPrompt2 = clean(document.getElementById('le_eternalism_analysis2').value);
     settings.postProcessPrompt1 = clean(document.getElementById('le_eternalism_post1').value);
@@ -1374,7 +1380,10 @@ async function initExtension() {
         document.getElementById('le_eternalism_master').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_debug').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_post_enabled').addEventListener('change', collectSettingsFromUi);
-        document.getElementById('le_eternalism_stage1_enabled').addEventListener('change', collectSettingsFromUi);
+        const stage1EnabledEl = document.getElementById('le_eternalism_stage1_enabled');
+        if (stage1EnabledEl) {
+            stage1EnabledEl.addEventListener('change', collectSettingsFromUi);
+        }
         document.getElementById('le_eternalism_analysis1').addEventListener('input', () => {
             collectSettingsFromUi();
             updateStage1Preview();
