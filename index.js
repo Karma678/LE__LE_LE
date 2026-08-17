@@ -1374,7 +1374,11 @@ function collectSettingsFromUi() {
 async function initExtension() {
     const context = SillyTavern.getContext();
     try {
-        const settingsHtml = await context.renderExtensionTemplateAsync('third-party/LE_ETERNALISM', 'settings');
+        const response = await fetch(`/scripts/extensions/third-party/LE__LE_LE/settings.html?v=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`Failed to load settings template: ${response.status}`);
+        }
+        const settingsHtml = await response.text();
         $('#extensions_settings2').append(settingsHtml);
 
         document.getElementById('le_eternalism_master').addEventListener('change', collectSettingsFromUi);
