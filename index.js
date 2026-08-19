@@ -6,6 +6,8 @@ const REGEX_ENGINE_PATHS = [
     '../../../../regex/engine.js',
 ];
 
+const TRACKER_REGEX_MIN_DEPTH = 4;
+
 let regexEnginePromise = null;
 
 function getRegexEngine() {
@@ -903,7 +905,7 @@ async function buildTrackerHistory() {
     const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
     const hasManualApi = engine && typeof engine.getRegexScripts === 'function' && typeof engine.runRegexScript === 'function';
     if (hasManualApi) {
-        log('Tracker stage: regex scripts applied manually with depth offset +1 (preset depth + 1); tracker blocks are protected from regex.');
+        log('Tracker stage: regex scripts applied manually with minimum depth 4 (the 4 newest messages are regex-free); tracker blocks are protected from regex.');
     }
     return messages.map((m, index) => {
         const block = typeof m.extra?.le_eternalism_tracker_block === 'string' && m.extra.le_eternalism_tracker_block.trim()
@@ -921,7 +923,7 @@ async function buildTrackerHistory() {
             const placement = m.is_user ? engine.regex_placement.USER_INPUT : engine.regex_placement.AI_OUTPUT;
             const presetDepth = messages.length - index - 1;
             if (hasManualApi) {
-                mes = applyRegexWithDepthOffset(engine, body, placement, presetDepth, 1);
+                mes = applyRegexWithMinDepth(engine, body, placement, presetDepth, TRACKER_REGEX_MIN_DEPTH);
             } else if (typeof engine.getRegexedString === 'function') {
                 mes = engine.getRegexedString(body, placement, { isPrompt: true, depth: presetDepth });
             }
@@ -936,8 +938,7 @@ async function buildTrackerHistory() {
     });
 }
 
-function applyRegexWithDepthOffset(engine, rawString, placement, presetDepth, offset) {
-    const shiftedDepth = presetDepth + offset;
+function applyRegexWithMinDepth(engine, rawString, placement, presetDepth, minDepth) {
     let result = String(rawString ?? '');
     let scripts = [];
     try {
@@ -956,10 +957,11 @@ function applyRegexWithDepthOffset(engine, rawString, placement, presetDepth, of
         if (!Array.isArray(script.placement) || !script.placement.includes(placement)) {
             continue;
         }
-        if (!isNaN(script.minDepth) && script.minDepth !== null && script.minDepth >= -1 && shiftedDepth < script.minDepth) {
+        const scriptMin = (!isNaN(script.minDepth) && script.minDepth !== null && script.minDepth >= -1) ? script.minDepth : -1;
+        if (presetDepth < Math.max(scriptMin, minDepth)) {
             continue;
         }
-        if (!isNaN(script.maxDepth) && script.maxDepth !== null && script.maxDepth >= 0 && shiftedDepth > script.maxDepth) {
+        if (!isNaN(script.maxDepth) && script.maxDepth !== null && script.maxDepth >= 0 && presetDepth > script.maxDepth) {
             continue;
         }
         try {
