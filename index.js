@@ -56,6 +56,7 @@ const defaultSettings = {
     stage1Api: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
     stage3Api: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
     trackerApi: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
+    trackerPromptsOnTop: false,
     trackers: [],
     preTracker: { enabled: false, openTag: '', closeTag: '' },
     trackerMainPrompt: '',
@@ -1079,42 +1080,47 @@ async function runTrackerStage(messageId) {
         log('Pre-tracker cleaner disabled.');
     }
 
-    const messages = [];
+    const bottomBlock = [];
     const lorebookText = await buildLorebookText();
     if (lorebookText) {
-        messages.push({ role: 'system', content: `Lorebook:\n${lorebookText}` });
+        bottomBlock.push({ role: 'system', content: `Lorebook:\n${lorebookText}` });
         log(`Tracker stage: lorebook context added (${lorebookText.length} chars).`);
     } else {
         log('Tracker stage: no lorebook context available.');
     }
     const npcCard = buildCharacterCard();
     if (npcCard) {
-        messages.push({ role: 'system', content: npcCard });
+        bottomBlock.push({ role: 'system', content: npcCard });
         log(`Tracker stage: character card added (${npcCard.length} chars).`);
     } else {
         log('Tracker stage: no character card available.');
     }
     const history = await buildTrackerHistory();
     if (history.length > 0) {
-        messages.push(...history);
+        bottomBlock.push(...history);
         log(`Tracker stage: full chat context added (${history.length} messages).`);
     }
+
+    const topBlock = [];
     if (clean(settings.trackerMainPrompt).trim()) {
-        messages.push({ role: 'system', content: clean(settings.trackerMainPrompt).trim() });
+        topBlock.push({ role: 'system', content: clean(settings.trackerMainPrompt).trim() });
         log('Tracker stage: main system prompt added.');
     }
     if (preTrackerContent) {
-        messages.push({ role: 'user', content: `<pre_tracker>\n${preTrackerContent}\n</pre_tracker>` });
+        topBlock.push({ role: 'user', content: `<pre_tracker>\n${preTrackerContent}\n</pre_tracker>` });
         log(`Tracker stage: pre-tracker content added (${preTrackerContent.length} chars).`);
     }
     for (const tracker of trackers) {
-        messages.push({ role: 'system', content: clean(tracker.systemPrompt).trim() });
+        topBlock.push({ role: 'system', content: clean(tracker.systemPrompt).trim() });
         log(`Tracker stage: system prompt of "${tracker.name}" added.`);
     }
     if (clean(settings.trackerThinkingPrompt).trim()) {
-        messages.push({ role: 'system', content: clean(settings.trackerThinkingPrompt).trim() });
+        topBlock.push({ role: 'system', content: clean(settings.trackerThinkingPrompt).trim() });
         log('Tracker stage: thinking prompt added.');
     }
+
+    const messages = settings.trackerPromptsOnTop ? [...topBlock, ...bottomBlock] : [...bottomBlock, ...topBlock];
+    log(`Tracker stage: prompt sequence "${settings.trackerPromptsOnTop ? 'tracker prompts on top' : 'standard'}".`);
 
     if (settings.debugMode) {
         const applied = await previewStage2Messages(messages, 'Stage 4 prompt preview', 'Review or modify the Stage 4 prompt before it is sent. Message boundaries are marked as [role:index]. Do not remove or reorder these markers.');
@@ -1956,6 +1962,7 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_pretracker_close').value = preTracker.closeTag ?? '';
     document.getElementById('le_eternalism_tracker_think').value = settings.trackerThinkingPrompt ?? '';
     document.getElementById('le_eternalism_tracker_main').value = settings.trackerMainPrompt ?? '';
+    document.getElementById('le_eternalism_tracker_prompts_top').checked = !!settings.trackerPromptsOnTop;
     renderLibrarySelector();
     renderTrackerSelector();
     updateStage1Preview();
@@ -1985,6 +1992,7 @@ function collectSettingsFromUi() {
     };
     settings.trackerThinkingPrompt = clean(document.getElementById('le_eternalism_tracker_think').value);
     settings.trackerMainPrompt = clean(document.getElementById('le_eternalism_tracker_main').value);
+    settings.trackerPromptsOnTop = document.getElementById('le_eternalism_tracker_prompts_top').checked;
     saveSettings();
     ensureAllMacrosRegistered();
 }
@@ -2025,6 +2033,7 @@ async function initExtension() {
         document.getElementById('le_eternalism_pretracker_close').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_tracker_think').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_tracker_main').addEventListener('input', collectSettingsFromUi);
+        document.getElementById('le_eternalism_tracker_prompts_top').addEventListener('change', collectSettingsFromUi);
         document.getElementById('le_eternalism_tracker_select').addEventListener('change', () => {
             const select = document.getElementById('le_eternalism_tracker_select');
             const index = Number(select.value);
