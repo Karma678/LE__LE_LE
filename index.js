@@ -903,18 +903,31 @@ async function buildTrackerHistory() {
     const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
     const hasManualApi = engine && typeof engine.getRegexScripts === 'function' && typeof engine.runRegexScript === 'function';
     if (hasManualApi) {
-        log('Tracker stage: regex scripts applied manually with depth offset +1 (preset depth + 1).');
+        log('Tracker stage: regex scripts applied manually with depth offset +1 (preset depth + 1); tracker blocks are protected from regex.');
     }
     return messages.map((m, index) => {
-        let mes = clean(m.mes);
+        const block = typeof m.extra?.le_eternalism_tracker_block === 'string' && m.extra.le_eternalism_tracker_block.trim()
+            ? m.extra.le_eternalism_tracker_block
+            : '';
+        let body = clean(m.mes);
+        if (block && body.endsWith(block)) {
+            const before = body.slice(0, body.length - block.length);
+            if (before.endsWith('\n')) {
+                body = before.replace(/\s+$/, '');
+            }
+        }
+        let mes = body;
         if (engine) {
             const placement = m.is_user ? engine.regex_placement.USER_INPUT : engine.regex_placement.AI_OUTPUT;
             const presetDepth = messages.length - index - 1;
             if (hasManualApi) {
-                mes = applyRegexWithDepthOffset(engine, mes, placement, presetDepth, 1);
+                mes = applyRegexWithDepthOffset(engine, body, placement, presetDepth, 1);
             } else if (typeof engine.getRegexedString === 'function') {
-                mes = engine.getRegexedString(mes, placement, { isPrompt: true, depth: presetDepth });
+                mes = engine.getRegexedString(body, placement, { isPrompt: true, depth: presetDepth });
             }
+        }
+        if (block) {
+            mes = `${mes}\n${block}`;
         }
         return {
             role: m.is_user ? 'user' : 'assistant',
@@ -1213,7 +1226,13 @@ async function runTrackerStage(messageId) {
     if (Array.isArray(message.swipes) && message.swipes[swipeId] !== undefined) {
         message.swipes[swipeId] = message.mes;
     }
-    if (message.extra && typeof message.extra.le_eternalism_processed === 'string') {
+    if (!message.extra) {
+        message.extra = {};
+    }
+    message.extra.le_eternalism_tracker_block = trackers
+        .map(tracker => extracted.get(normalizeVariable(tracker.variable)) ?? '')
+        .join('\n');
+    if (typeof message.extra.le_eternalism_processed === 'string') {
         message.extra.le_eternalism_processed = message.mes;
     }
     await context.updateMessageBlock(messageId, message);
