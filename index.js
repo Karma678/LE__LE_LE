@@ -898,7 +898,7 @@ async function buildTrackerHistory() {
             const placement = m.is_user ? engine.regex_placement.USER_INPUT : engine.regex_placement.AI_OUTPUT;
             mes = engine.getRegexedString(mes, placement, {
                 isPrompt: true,
-                depth: messages.length - index - 1,
+                depth: messages.length - index,
             });
         }
         return {
