@@ -1051,6 +1051,21 @@ async function runTrackerStage(messageId) {
         log('Tracker stage: thinking prompt added.');
     }
 
+    if (settings.debugMode) {
+        const applied = await previewStage2Messages(messages, 'Stage 4 prompt preview', 'Review or modify the Stage 4 prompt before it is sent. Message boundaries are marked as [role:index]. Do not remove or reorder these markers.');
+        if (applied === null) {
+            log('Stage 4 preview cancelled.');
+            toastr.info('LE Eternalism: Stage 4 cancelled.');
+            return false;
+        }
+        if (applied === false) {
+            toastr.warning('LE Eternalism: edits not applied (message structure changed). Sending the original Stage 4 prompt.');
+            log('Stage 4 preview edits not applied — sending the original prompt.');
+        } else {
+            log('Stage 4 preview confirmed.');
+        }
+    }
+
     let handle = null;
     let stage4Cancelled = false;
     const abortController = new AbortController();
@@ -1410,13 +1425,13 @@ function deserializeMessages(text, messages) {
     return true;
 }
 
-async function previewStage2Messages(messages, title = 'Stage 2 prompt preview') {
+async function previewStage2Messages(messages, title = 'Stage 2 prompt preview', hint = 'Review or modify the Stage 2 prompt before it is sent. Message boundaries are marked as [role:index]. Do not remove or reorder these markers.') {
     const context = SillyTavern.getContext();
     const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
     const initialText = serializeMessages(messages);
     const $content = $(`
         <div style="display:flex; flex-direction:column; gap:10px;">
-            <div class="le_eternalism_hint">Review or modify the Stage 2 prompt before it is sent. Message boundaries are marked as [role:index]. Do not remove or reorder these markers.</div>
+            <div class="le_eternalism_hint">${escapeHtml(hint)}</div>
             <textarea class="text_pole le_eternalism_preview_edit">${escapeHtml(initialText)}</textarea>
         </div>
     `);
