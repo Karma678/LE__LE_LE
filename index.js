@@ -229,6 +229,12 @@ function clean(text) {
     return String(text ?? '').replace(/\r\n?/g, '\n');
 }
 
+function cleanPromptContent(text) {
+    return String(text ?? '')
+        .replace(/^[ \t]*\b(?:continue\s+please|please\s+continue)\b[.!?,;:]*(?:[ \t]*\r?\n)?/gim, '')
+        .replace(/\b(?:continue\s+please|please\s+continue)\b[.!?,;:]*[ \t]*/gi, '');
+}
+
 function escapeHtml(text) {
     return String(text)
         .replace(/&/g, '&amp;')
@@ -422,7 +428,7 @@ async function buildStage1History(genType) {
         }
     }
     const toMessage = (m, messageIndex, total) => {
-        let mes = clean(m.mes);
+        let mes = cleanPromptContent(clean(m.mes));
         if (engine) {
             const placement = m.is_user ? engine.regex_placement.USER_INPUT : engine.regex_placement.AI_OUTPUT;
             mes = engine.getRegexedString(mes, placement, {
@@ -596,7 +602,7 @@ async function runAnalysisAndApply(reason, genType) {
         const engine = await getRegexEngine();
         const latestUserMessage = [...context.chat].reverse().find(m => m.is_user && typeof m.mes === 'string' && m.mes.trim().length > 0);
         if (latestUserMessage) {
-            let latestText = clean(latestUserMessage.mes);
+            let latestText = cleanPromptContent(clean(latestUserMessage.mes));
             if (engine) {
                 latestText = engine.getRegexedString(latestText, engine.regex_placement.USER_INPUT, {
                     isPrompt: true,
@@ -784,7 +790,7 @@ async function postProcessStage3(messageId, type) {
     const abortController = new AbortController();
     try {
         log(`Post-processing message ${messageId}...`);
-        const originalText = clean(message.mes);
+        const originalText = cleanPromptContent(clean(message.mes));
         const messages = stage3SystemPrompts.map(p => ({ role: 'system', content: p }));
         messages.push({ role: 'user', content: originalText });
 
@@ -912,7 +918,7 @@ async function buildTrackerHistory() {
         const block = typeof m.extra?.le_eternalism_tracker_block === 'string' && m.extra.le_eternalism_tracker_block.trim()
             ? m.extra.le_eternalism_tracker_block
             : '';
-        let body = clean(m.mes);
+        let body = cleanPromptContent(clean(m.mes));
         if (block && body.endsWith(block)) {
             const before = body.slice(0, body.length - block.length);
             if (before.endsWith('\n')) {
@@ -1067,7 +1073,7 @@ async function runTrackerStage(messageId) {
         if (open && close && open !== close) {
             const extracted = extractBetween(message.mes, open, close);
             if (extracted !== null) {
-                preTrackerContent = extracted;
+                preTrackerContent = cleanPromptContent(extracted);
                 message.mes = removeTaggedBlocks(message.mes, open, close);
                 log(`Pre-tracker cleaner: extracted ${extracted.length} chars of context, tags cleaned out of the last AI message.`);
             } else {
@@ -1452,7 +1458,7 @@ function applyPromptReplacements(content) {
     if (!getSettings().masterEnabled) {
         return content;
     }
-    let result = content;
+    let result = cleanPromptContent(content);
     for (const module of getSettings().library) {
         const variable = normalizeVariable(module.variable);
         if (!variable) {
@@ -1562,7 +1568,7 @@ async function handlePromptReady(eventData) {
                 }
                 foundTags.add(variable);
                 const value = activeModuleVariables.get(variable) ?? '';
-                const processed = clean(typeof context.substituteParams === 'function' ? context.substituteParams(value) : value);
+                const processed = clean(cleanPromptContent(typeof context.substituteParams === 'function' ? context.substituteParams(value) : value));
                 if (processed.trim() === '') {
                     msg.content = msg.content.replace(new RegExp(`^[ \\t]*${escapeRegex(tag)}[ \\t]*\\r?\\n?`, 'gm'), '');
                     log(`Tag ${tag} removed — module inactive (no content).`);
@@ -1573,6 +1579,7 @@ async function handlePromptReady(eventData) {
                 replacements++;
             }
         }
+        msg.content = cleanPromptContent(msg.content);
         msg.content = msg.content.replace(/(?:^[ \t]*\[\[le_(?!tracker_)[^\]]*\]\][ \t]*\r?\n?)|(?:\[\[le_(?!tracker_)[^\]]*\]\])/gm, '');
     });
 
