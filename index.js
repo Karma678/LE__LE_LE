@@ -888,14 +888,24 @@ function removeTaggedBlocks(text, openTag, closeTag) {
     return String(text ?? '').replace(regex, '');
 }
 
-function buildTrackerHistory() {
+async function buildTrackerHistory() {
     const context = SillyTavern.getContext();
-    return context.chat
-        .filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0)
-        .map(m => ({
+    const engine = await getRegexEngine();
+    const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
+    return messages.map((m, index) => {
+        let mes = clean(m.mes);
+        if (engine) {
+            const placement = m.is_user ? engine.regex_placement.USER_INPUT : engine.regex_placement.AI_OUTPUT;
+            mes = engine.getRegexedString(mes, placement, {
+                isPrompt: true,
+                depth: messages.length - index - 1,
+            });
+        }
+        return {
             role: m.is_user ? 'user' : 'assistant',
-            content: clean(`${m.name || (m.is_user ? context.name1 : context.name2)}: ${m.mes}`),
-        }));
+            content: clean(`${m.name || (m.is_user ? context.name1 : context.name2)}: ${mes}`),
+        };
+    });
 }
 
 async function buildLorebookText() {
@@ -1012,7 +1022,7 @@ async function runTrackerStage(messageId) {
     } else {
         log('Tracker stage: no lorebook context available.');
     }
-    const history = buildTrackerHistory();
+    const history = await buildTrackerHistory();
     if (history.length > 0) {
         messages.push(...history);
         log(`Tracker stage: full chat context added (${history.length} messages).`);
