@@ -971,26 +971,26 @@ async function runTrackerStage(messageId) {
     const context = SillyTavern.getContext();
     const settings = getSettings();
     if (!settings.masterEnabled) {
-        return;
+        return false;
     }
 
     const trackers = settings.trackers.filter(isValidTracker);
     if (trackers.length === 0) {
         log('Tracker stage skipped: no enabled tracker with a valid macro, tags and system prompt.');
-        return;
+        return false;
     }
     if (messageId !== context.chat.length - 1) {
         log(`Tracker stage skipped (message ${messageId} is not the last one; last is ${context.chat.length - 1}).`);
-        return;
+        return false;
     }
     const message = context.chat[messageId];
     if (!message || message.is_user || message.is_system) {
         log('Tracker stage skipped (message is missing, user or system).');
-        return;
+        return false;
     }
     if (typeof message.mes !== 'string' || !message.mes.trim()) {
         log('Tracker stage skipped (message body is empty).');
-        return;
+        return false;
     }
 
     const cleaner = settings.preTracker ?? {};
@@ -1082,12 +1082,12 @@ async function runTrackerStage(messageId) {
         if (stage4Cancelled || abortController.signal.aborted) {
             toastr.info('LE Eternalism: Stage 4 cancelled — message kept as is.');
             log('Stage 4 cancelled by user.');
-            return;
+            return false;
         }
         if (isCustomApiEnabled(settings.trackerApi)) {
             toastr.error(`LE Eternalism: Stage 4 custom API error — message kept as is. ${error.message}`);
             log(`Stage 4 custom API failed: ${error}`);
-            return;
+            return false;
         }
         throw error;
     } finally {
@@ -1138,6 +1138,45 @@ async function runTrackerStage(messageId) {
     await context.updateMessageBlock(messageId, message);
     await context.saveChat();
     log('Tracker stage finished: macros filled at the end of the last AI message.');
+    return true;
+}
+
+async function manualRunTrackerStage() {
+    const context = SillyTavern.getContext();
+    if (!getSettings().masterEnabled) {
+        toastr.warning('LE Eternalism: master toggle is disabled.');
+        return;
+    }
+    if (isPipelineRunning) {
+        toastr.warning('LE Eternalism: another stage is already running.');
+        return;
+    }
+    const messageId = context.chat.length - 1;
+    if (messageId < 0) {
+        toastr.warning('LE Eternalism: the chat is empty.');
+        return;
+    }
+    const message = context.chat[messageId];
+    if (!message || message.is_user || message.is_system) {
+        toastr.warning('LE Eternalism: the last message is not an AI message.');
+        return;
+    }
+    if (typeof message.mes !== 'string' || !message.mes.trim()) {
+        toastr.warning('LE Eternalism: the last AI message is empty.');
+        return;
+    }
+    isPipelineRunning = true;
+    try {
+        const done = await runTrackerStage(messageId);
+        if (!done) {
+            toastr.info('LE Eternalism: Stage 4 skipped — see the log for details.');
+        }
+    } catch (error) {
+        toastr.error(`LE Eternalism: Stage 4 failed: ${error.message}`);
+        log(`Stage 4 failed: ${error}`);
+    } finally {
+        isPipelineRunning = false;
+    }
 }
 
 async function togglePostProcessingState(messageId) {
@@ -1870,6 +1909,11 @@ async function initExtension() {
             document.getElementById('le_eternalism_tracker_select').selectedIndex = index;
             openTrackerEditor(index).catch(error => {
                 console.error('[LE Eternalism] Tracker editor error:', error);
+            });
+        });
+        document.getElementById('le_eternalism_tracker_run').addEventListener('click', () => {
+            manualRunTrackerStage().catch(error => {
+                console.error('[LE Eternalism] Manual Stage 4 error:', error);
             });
         });
         document.getElementById('le_eternalism_library_select').addEventListener('change', () => {
