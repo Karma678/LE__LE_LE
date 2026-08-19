@@ -1068,16 +1068,22 @@ async function runTrackerStage(messageId) {
         },
     });
     let response = '';
+    let reasoning = '';
     try {
         if (isCustomApiEnabled(settings.trackerApi)) {
             validateCustomApiConfig(settings.trackerApi, 'Stage 4');
             const result = await customChatCompletion(settings.trackerApi, messages, abortController.signal);
             response = result.content;
+            reasoning = result.reasoning;
         } else {
             const result = await rawGenerate({ prompt: messages });
             response = result.content;
+            reasoning = result.reasoning;
         }
         log(`Tracker stage response (${response.length} chars).`);
+        if (reasoning.trim()) {
+            log(`Tracker stage reasoning:\n${reasoning}`);
+        }
     } catch (error) {
         if (stage4Cancelled || abortController.signal.aborted) {
             toastr.info('LE Eternalism: Stage 4 cancelled — message kept as is.');
@@ -1109,7 +1115,7 @@ async function runTrackerStage(messageId) {
     }
 
     if (settings.debugMode) {
-        const confirmed = await previewTrackerStageResult(response, trackers, extracted);
+        const confirmed = await previewTrackerStageResult(response, reasoning, trackers, extracted);
         if (!confirmed) {
             toastr.info('LE Eternalism: Stage 4 cancelled — message kept as is.');
             log('Stage 4 aborted by user at debug checkpoint.');
@@ -1151,7 +1157,7 @@ async function runTrackerStage(messageId) {
     return true;
 }
 
-async function previewTrackerStageResult(response, trackers, extracted) {
+async function previewTrackerStageResult(response, reasoning, trackers, extracted) {
     const context = SillyTavern.getContext();
     const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
     const summary = trackers.map(tracker => {
@@ -1159,8 +1165,15 @@ async function previewTrackerStageResult(response, trackers, extracted) {
         const content = extracted.get(variable);
         return `${tracker.name || '(unnamed)'}: ${content !== undefined ? `extracted ${content.length} chars` : 'tags not found in the response'}`;
     }).join('\n');
+    const reasoningBlock = String(reasoning ?? '').trim()
+        ? `<details class="le_eternalism_reasoning_block">
+            <summary>Model reasoning (${String(reasoning).length} chars)</summary>
+            <pre class="le_eternalism_debug">${escapeHtml(reasoning)}</pre>
+           </details>`
+        : '';
     const popup = new Popup(
         `<h3>Stage 4 — Tracker output</h3>`
+        + reasoningBlock
         + `<div class="le_eternalism_hint">Output of the tracker stage. The content inside the tracker tags will be placed into the macros at the end of the last AI message.</div>`
         + `<pre class="le_eternalism_debug">${escapeHtml(response)}</pre>`
         + `<div class="le_eternalism_debug_summary">Parsed trackers:\n${escapeHtml(summary)}</div>`,
