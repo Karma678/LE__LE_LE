@@ -1,10 +1,19 @@
 const MODULE_NAME = 'le_eternalism';
 
+const REGEX_ENGINE_PATHS = [
+    '../../regex/engine.js',
+    '../../../regex/engine.js',
+    '../../../../regex/engine.js',
+];
+
 let regexEnginePromise = null;
 
 function getRegexEngine() {
     if (!regexEnginePromise) {
-        regexEnginePromise = import('../../regex/engine.js').catch(() => null);
+        regexEnginePromise = import(REGEX_ENGINE_PATHS[0])
+            .catch(() => import(REGEX_ENGINE_PATHS[1]))
+            .catch(() => import(REGEX_ENGINE_PATHS[2]))
+            .catch(() => null);
     }
     return regexEnginePromise;
 }
@@ -892,20 +901,61 @@ async function buildTrackerHistory() {
     const context = SillyTavern.getContext();
     const engine = await getRegexEngine();
     const messages = context.chat.filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0);
+    const hasManualApi = engine && typeof engine.getRegexScripts === 'function' && typeof engine.runRegexScript === 'function';
+    if (hasManualApi) {
+        log('Tracker stage: regex scripts applied manually with depth offset +1 (preset depth + 1).');
+    }
     return messages.map((m, index) => {
         let mes = clean(m.mes);
         if (engine) {
             const placement = m.is_user ? engine.regex_placement.USER_INPUT : engine.regex_placement.AI_OUTPUT;
-            mes = engine.getRegexedString(mes, placement, {
-                isPrompt: true,
-                depth: messages.length - index,
-            });
+            const presetDepth = messages.length - index - 1;
+            if (hasManualApi) {
+                mes = applyRegexWithDepthOffset(engine, mes, placement, presetDepth, 1);
+            } else if (typeof engine.getRegexedString === 'function') {
+                mes = engine.getRegexedString(mes, placement, { isPrompt: true, depth: presetDepth });
+            }
         }
         return {
             role: m.is_user ? 'user' : 'assistant',
             content: clean(`${m.name || (m.is_user ? context.name1 : context.name2)}: ${mes}`),
         };
     });
+}
+
+function applyRegexWithDepthOffset(engine, rawString, placement, presetDepth, offset) {
+    const shiftedDepth = presetDepth + offset;
+    let result = String(rawString ?? '');
+    let scripts = [];
+    try {
+        scripts = engine.getRegexScripts({ allowedOnly: true });
+    } catch (error) {
+        console.warn('[LE Eternalism] Could not read regex scripts:', error);
+        return result;
+    }
+    for (const script of scripts) {
+        if (!script || script.disabled || !script.findRegex) {
+            continue;
+        }
+        if (script.markdownOnly || !script.promptOnly) {
+            continue;
+        }
+        if (!Array.isArray(script.placement) || !script.placement.includes(placement)) {
+            continue;
+        }
+        if (!isNaN(script.minDepth) && script.minDepth !== null && script.minDepth >= -1 && shiftedDepth < script.minDepth) {
+            continue;
+        }
+        if (!isNaN(script.maxDepth) && script.maxDepth !== null && script.maxDepth >= 0 && shiftedDepth > script.maxDepth) {
+            continue;
+        }
+        try {
+            result = engine.runRegexScript(script, result);
+        } catch (error) {
+            console.warn('[LE Eternalism] Regex script failed:', error);
+        }
+    }
+    return result;
 }
 
 async function buildLorebookText() {
