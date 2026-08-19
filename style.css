@@ -88,6 +88,16 @@
     background: linear-gradient(180deg, rgba(120, 140, 180, 0.14), rgba(120, 140, 180, 0.03));
 }
 
+.le-eternalism-settings .le_eternalism_section_trackers .le_eternalism_section_header {
+    background: linear-gradient(180deg, rgba(212, 175, 55, 0.16), rgba(212, 175, 55, 0.03));
+    border-bottom-color: rgba(212, 175, 55, 0.35);
+}
+
+.le_eternalism_error {
+    color: #ff8080 !important;
+    font-weight: bold;
+}
+
 /* ---------- Labels & hints ---------- */
 .le-eternalism-settings label {
     color: #aeb8cc;
@@ -167,7 +177,8 @@
 #le_eternalism_save,
 #le_eternalism_export,
 #le_eternalism_import,
-#le_eternalism_lib_add {
+#le_eternalism_lib_add,
+#le_eternalism_tracker_add {
     background: linear-gradient(180deg, #5a8cff 0%, #3d66c9 100%) !important;
     border: 1px solid rgba(120, 165, 255, 0.55) !important;
     color: #ffffff !important;
@@ -177,7 +188,8 @@
 #le_eternalism_save:hover,
 #le_eternalism_export:hover,
 #le_eternalism_import:hover,
-#le_eternalism_lib_add:hover {
+#le_eternalism_lib_add:hover,
+#le_eternalism_tracker_add:hover {
     background: linear-gradient(180deg, #7aa5ff 0%, #4a74d6 100%) !important;
     box-shadow: 0 0 12px rgba(90, 140, 255, 0.35);
 }

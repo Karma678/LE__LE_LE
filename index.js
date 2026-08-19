@@ -44,6 +44,10 @@ const defaultSettings = {
     stage1Enabled: true,
     stage1Api: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
     stage3Api: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
+    trackerApi: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
+    trackers: [],
+    preTracker: { enabled: false, openTag: '', closeTag: '' },
+    trackerThinkingPrompt: '',
     library: [],
 };
 
@@ -193,6 +197,12 @@ function getSettings() {
     if (!Array.isArray(settings.library)) {
         settings.library = [];
     }
+    if (!Array.isArray(settings.trackers)) {
+        settings.trackers = [];
+    }
+    if (!settings.preTracker || typeof settings.preTracker !== 'object') {
+        settings.preTracker = { enabled: false, openTag: '', closeTag: '' };
+    }
     settings.enabled = true;
     return settings;
 }
@@ -227,7 +237,7 @@ function normalizeVariable(value) {
 
 function sanitizeApiBlocks(settings) {
     const clone = JSON.parse(JSON.stringify(settings));
-    for (const key of ['stage1Api', 'stage3Api']) {
+    for (const key of ['stage1Api', 'stage3Api', 'trackerApi']) {
         if (clone[key] && typeof clone[key] === 'object') {
             delete clone[key].apiKey;
             delete clone[key].baseUrl;
@@ -269,10 +279,11 @@ async function importSettings(event) {
         const preserved = {
             s1: { apiKey: previous.stage1Api?.apiKey ?? '', baseUrl: previous.stage1Api?.baseUrl ?? '', model: previous.stage1Api?.model ?? '' },
             s3: { apiKey: previous.stage3Api?.apiKey ?? '', baseUrl: previous.stage3Api?.baseUrl ?? '', model: previous.stage3Api?.model ?? '' },
+            s4: { apiKey: previous.trackerApi?.apiKey ?? '', baseUrl: previous.trackerApi?.baseUrl ?? '', model: previous.trackerApi?.model ?? '' },
         };
         const sanitized = sanitizeApiBlocks(data);
         context.extensionSettings[MODULE_NAME] = sanitized;
-        for (const [key, value] of [['stage1Api', preserved.s1], ['stage3Api', preserved.s3]]) {
+        for (const [key, value] of [['stage1Api', preserved.s1], ['stage3Api', preserved.s3], ['trackerApi', preserved.s4]]) {
             if (context.extensionSettings[MODULE_NAME][key] && typeof context.extensionSettings[MODULE_NAME][key] === 'object') {
                 context.extensionSettings[MODULE_NAME][key].apiKey = value.apiKey;
                 context.extensionSettings[MODULE_NAME][key].baseUrl = value.baseUrl;
@@ -710,7 +721,7 @@ async function runAnalysisAndApply(reason, genType) {
     }
 }
 
-async function postProcessMessage(messageId, type) {
+async function postProcessStage3(messageId, type) {
     const context = SillyTavern.getContext();
     const settings = getSettings();
 
@@ -845,6 +856,266 @@ async function postProcessMessage(messageId, type) {
             await handle.hide();
         }
     }
+}
+
+async function postProcessMessage(messageId, type) {
+    await postProcessStage3(messageId, type);
+    try {
+        await runTrackerStage(messageId);
+    } catch (error) {
+        toastr.error(`LE Eternalism tracker stage failed: ${error.message}`);
+        log(`Tracker stage failed: ${error}`);
+    }
+}
+
+function extractBetween(text, openTag, closeTag) {
+    const source = String(text ?? '');
+    const openMatch = new RegExp(escapeRegex(openTag), 'i').exec(source);
+    if (!openMatch) {
+        return null;
+    }
+    const after = source.slice(openMatch.index + openMatch[0].length);
+    const closeMatch = new RegExp(escapeRegex(closeTag), 'i').exec(after);
+    if (!closeMatch) {
+        return null;
+    }
+    return after.slice(0, closeMatch.index).trim();
+}
+
+function removeTaggedBlocks(text, openTag, closeTag) {
+    const regex = new RegExp(`${escapeRegex(openTag)}[\\s\\S]*?${escapeRegex(closeTag)}`, 'gi');
+    return String(text ?? '').replace(regex, '');
+}
+
+function buildTrackerHistory() {
+    const context = SillyTavern.getContext();
+    return context.chat
+        .filter(m => typeof m.mes === 'string' && m.mes.trim().length > 0)
+        .map(m => ({
+            role: m.is_user ? 'user' : 'assistant',
+            content: clean(`${m.name || (m.is_user ? context.name1 : context.name2)}: ${m.mes}`),
+        }));
+}
+
+async function buildLorebookText() {
+    const context = SillyTavern.getContext();
+    try {
+        if (typeof context.lorebook?.getContextLorebook === 'function') {
+            const chatText = context.chat.map(m => (typeof m.mes === 'string' ? m.mes : '')).join('\n');
+            const text = await context.lorebook.getContextLorebook(chatText, context.characterId, 1000);
+            if (typeof text === 'string' && text.trim()) {
+                return text.trim();
+            }
+        }
+    } catch (error) {
+        console.warn('[LE Eternalism] getContextLorebook failed, using fallback:', error);
+    }
+    try {
+        const current = context.lorebook?.current;
+        if (Array.isArray(current)) {
+            const parts = [];
+            for (const item of current) {
+                const content = item?.entry?.content ?? item?.content ?? '';
+                const name = item?.entry?.name ?? item?.name ?? '';
+                if (String(content).trim()) {
+                    parts.push(name ? `${name}:\n${content}` : content);
+                }
+            }
+            if (parts.length > 0) {
+                return parts.join('\n\n');
+            }
+        }
+    } catch (error) {
+        console.warn('[LE Eternalism] lorebook fallback failed:', error);
+    }
+    return '';
+}
+
+function isValidTracker(tracker) {
+    if (!tracker || !tracker.enabled) {
+        return false;
+    }
+    if (!normalizeVariable(tracker.variable)) {
+        log(`Tracker "${tracker.name || '(unnamed)'}" skipped: macro variable is empty.`);
+        return false;
+    }
+    if (!clean(tracker.systemPrompt ?? '').trim()) {
+        log(`Tracker "${tracker.name || '(unnamed)'}" skipped: system prompt is empty.`);
+        return false;
+    }
+    const open = String(tracker.openTag ?? '').trim();
+    const close = String(tracker.closeTag ?? '').trim();
+    if (!open || !close) {
+        log(`Tracker "${tracker.name || '(unnamed)'}" skipped: opening or closing tag is empty.`);
+        return false;
+    }
+    if (open === close) {
+        log(`Tracker "${tracker.name || '(unnamed)'}" skipped: opening and closing tags are the same.`);
+        return false;
+    }
+    return true;
+}
+
+async function runTrackerStage(messageId) {
+    const context = SillyTavern.getContext();
+    const settings = getSettings();
+    if (!settings.masterEnabled) {
+        return;
+    }
+
+    const trackers = settings.trackers.filter(isValidTracker);
+    if (trackers.length === 0) {
+        log('Tracker stage skipped: no enabled tracker with a valid macro, tags and system prompt.');
+        return;
+    }
+    if (messageId !== context.chat.length - 1) {
+        log(`Tracker stage skipped (message ${messageId} is not the last one; last is ${context.chat.length - 1}).`);
+        return;
+    }
+    const message = context.chat[messageId];
+    if (!message || message.is_user || message.is_system) {
+        log('Tracker stage skipped (message is missing, user or system).');
+        return;
+    }
+    if (typeof message.mes !== 'string' || !message.mes.trim()) {
+        log('Tracker stage skipped (message body is empty).');
+        return;
+    }
+
+    const cleaner = settings.preTracker ?? {};
+    let preTrackerContent = '';
+    if (cleaner.enabled) {
+        const open = String(cleaner.openTag ?? '').trim();
+        const close = String(cleaner.closeTag ?? '').trim();
+        if (open && close && open !== close) {
+            const extracted = extractBetween(message.mes, open, close);
+            if (extracted !== null) {
+                preTrackerContent = extracted;
+                message.mes = removeTaggedBlocks(message.mes, open, close);
+                log(`Pre-tracker cleaner: extracted ${extracted.length} chars of context, tags cleaned out of the last AI message.`);
+            } else {
+                log('Pre-tracker cleaner: no opening tag found in the last AI message.');
+            }
+        } else {
+            log('Pre-tracker cleaner skipped: tags must be non-empty and different.');
+        }
+    } else {
+        log('Pre-tracker cleaner disabled.');
+    }
+
+    const messages = [];
+    const lorebookText = await buildLorebookText();
+    if (lorebookText) {
+        messages.push({ role: 'system', content: `Lorebook:\n${lorebookText}` });
+        log(`Tracker stage: lorebook context added (${lorebookText.length} chars).`);
+    } else {
+        log('Tracker stage: no lorebook context available.');
+    }
+    const history = buildTrackerHistory();
+    if (history.length > 0) {
+        messages.push(...history);
+        log(`Tracker stage: full chat context added (${history.length} messages).`);
+    }
+    if (preTrackerContent) {
+        messages.push({ role: 'user', content: `<pre_tracker>\n${preTrackerContent}\n</pre_tracker>` });
+        log(`Tracker stage: pre-tracker content added (${preTrackerContent.length} chars).`);
+    }
+    for (const tracker of trackers) {
+        messages.push({ role: 'system', content: clean(tracker.systemPrompt).trim() });
+        log(`Tracker stage: system prompt of "${tracker.name}" added.`);
+    }
+    if (clean(settings.trackerThinkingPrompt).trim()) {
+        messages.push({ role: 'system', content: clean(settings.trackerThinkingPrompt).trim() });
+        log('Tracker stage: thinking prompt added.');
+    }
+
+    let handle = null;
+    let stage4Cancelled = false;
+    const abortController = new AbortController();
+    handle = context.loader.show({
+        message: 'Stage 4: extracting trackers...',
+        blocking: false,
+        onStop: () => {
+            stage4Cancelled = true;
+            abortController.abort();
+            try {
+                context.stopGeneration();
+            } catch (error) {
+                console.warn('[LE Eternalism] Could not stop generation:', error);
+            }
+        },
+    });
+    let response = '';
+    try {
+        if (isCustomApiEnabled(settings.trackerApi)) {
+            validateCustomApiConfig(settings.trackerApi, 'Stage 4');
+            const result = await customChatCompletion(settings.trackerApi, messages, abortController.signal);
+            response = result.content;
+        } else {
+            const result = await rawGenerate({ prompt: messages });
+            response = result.content;
+        }
+        log(`Tracker stage response (${response.length} chars).`);
+    } catch (error) {
+        if (stage4Cancelled || abortController.signal.aborted) {
+            toastr.info('LE Eternalism: Stage 4 cancelled — message kept as is.');
+            log('Stage 4 cancelled by user.');
+            return;
+        }
+        if (isCustomApiEnabled(settings.trackerApi)) {
+            toastr.error(`LE Eternalism: Stage 4 custom API error — message kept as is. ${error.message}`);
+            log(`Stage 4 custom API failed: ${error}`);
+            return;
+        }
+        throw error;
+    } finally {
+        if (handle) {
+            await handle.hide();
+        }
+    }
+
+    const extracted = new Map();
+    for (const tracker of trackers) {
+        const content = extractBetween(response, String(tracker.openTag).trim(), String(tracker.closeTag).trim());
+        const variable = normalizeVariable(tracker.variable);
+        if (content !== null) {
+            extracted.set(variable, content);
+            log(`Tracker "${tracker.name}": extracted ${content.length} chars for [[le_tracker_${variable}]].`);
+        } else {
+            log(`Tracker "${tracker.name}": no content found between its tags in the Stage 4 response.`);
+        }
+    }
+
+    for (const tracker of trackers) {
+        const variable = normalizeVariable(tracker.variable);
+        const tag = `[[le_tracker_${variable}]]`;
+        if (!message.mes.toLowerCase().includes(tag.toLowerCase())) {
+            message.mes = `${message.mes.trimEnd()}\n${tag}`;
+            log(`Tracker "${tracker.name}": macro ${tag} appended to the end of the last AI message.`);
+        }
+    }
+    for (const tracker of trackers) {
+        const variable = normalizeVariable(tracker.variable);
+        const tag = `[[le_tracker_${variable}]]`;
+        const value = extracted.get(variable) ?? '';
+        const regex = new RegExp(escapeRegex(tag), 'gi');
+        const count = (message.mes.match(regex) || []).length;
+        if (count > 0) {
+            message.mes = message.mes.replace(regex, value);
+            log(`Tracker "${tracker.name}": macro ${tag} replaced with extracted content (${value.length} chars, ${count} occurrence(s)).`);
+        }
+    }
+
+    const swipeId = message.swipe_id ?? 0;
+    if (Array.isArray(message.swipes) && message.swipes[swipeId] !== undefined) {
+        message.swipes[swipeId] = message.mes;
+    }
+    if (message.extra && typeof message.extra.le_eternalism_processed === 'string') {
+        message.extra.le_eternalism_processed = message.mes;
+    }
+    await context.updateMessageBlock(messageId, message);
+    await context.saveChat();
+    log('Tracker stage finished: macros filled at the end of the last AI message.');
 }
 
 async function togglePostProcessingState(messageId) {
@@ -1286,6 +1557,141 @@ async function openLibraryEditor(index) {
     renderLibrarySelector();
 }
 
+function renderTrackerSelector() {
+    const settings = getSettings();
+    const select = document.getElementById('le_eternalism_tracker_select');
+    if (!select) {
+        return;
+    }
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Choose tracker...';
+    placeholder.disabled = true;
+    placeholder.hidden = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+    settings.trackers.forEach((tracker, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = (tracker.name && tracker.name.trim()) ? tracker.name : `(unnamed ${index + 1})`;
+        select.appendChild(option);
+    });
+    select.selectedIndex = 0;
+}
+
+async function openTrackerEditor(index) {
+    const context = SillyTavern.getContext();
+    const settings = getSettings();
+    const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
+    if (index < 0 || index >= settings.trackers.length) {
+        return;
+    }
+    const tracker = settings.trackers[index];
+    const wasEmpty = !(tracker.name || '').trim() && !(tracker.systemPrompt || '').trim();
+
+    const $content = $(`
+        <div class="le_eternalism_editor" style="display:flex; flex-direction:column; gap:8px;">
+            <label class="le_eternalism_hint">Tracker Editing</label>
+            <input type="text" id="le_eternalism_trk_name" class="text_pole" placeholder="Tracker name">
+            <div class="flex-container alignItemsCenter flexGap5">
+                <input type="text" id="le_eternalism_trk_variable" class="text_pole flex1" placeholder="variable (e.g. hp)">
+                <span class="le_eternalism_hint" id="le_eternalism_trk_macro_hint"></span>
+            </div>
+            <div class="flex-container alignItemsCenter flexGap5">
+                <input type="text" id="le_eternalism_trk_open" class="text_pole flex1" placeholder="Opening tag, e.g. <hp>">
+                <input type="text" id="le_eternalism_trk_close" class="text_pole flex1" placeholder="Closing tag, e.g. </hp>">
+            </div>
+            <div class="le_eternalism_hint le_eternalism_error" id="le_eternalism_trk_error" hidden>Opening and closing tags must be different.</div>
+            <label class="checkbox_label"><input type="checkbox" id="le_eternalism_trk_enabled"> <span>Enabled</span></label>
+            <label class="le_eternalism_hint">Tracker system prompt (the AI fills the tags with information)</label>
+            <textarea id="le_eternalism_trk_prompt" class="text_pole" style="width:100%; min-height:200px; font-family:monospace; resize:vertical;"></textarea>
+        </div>
+    `);
+    const nameInput = $content.find('#le_eternalism_trk_name');
+    const variableInput = $content.find('#le_eternalism_trk_variable');
+    const macroHint = $content.find('#le_eternalism_trk_macro_hint');
+    const openInput = $content.find('#le_eternalism_trk_open');
+    const closeInput = $content.find('#le_eternalism_trk_close');
+    const errorHint = $content.find('#le_eternalism_trk_error');
+    const enabledInput = $content.find('#le_eternalism_trk_enabled');
+    const promptArea = $content.find('#le_eternalism_trk_prompt');
+
+    const updateMacroHint = () => {
+        const variable = normalizeVariable(variableInput.val());
+        macroHint.text(variable ? `→ [[le_tracker_${variable}]]` : '→ [[le_tracker_…]]');
+    };
+    const updateError = () => {
+        const open = openInput.val().trim();
+        const close = closeInput.val().trim();
+        errorHint.prop('hidden', !(open && close && open === close));
+    };
+
+    nameInput.val(tracker.name ?? '');
+    variableInput.val(tracker.variable ?? '');
+    openInput.val(tracker.openTag ?? '');
+    closeInput.val(tracker.closeTag ?? '');
+    enabledInput.prop('checked', !!tracker.enabled);
+    promptArea.val(tracker.systemPrompt ?? '');
+    updateMacroHint();
+    updateError();
+
+    nameInput.on('input', () => {
+        tracker.name = clean(nameInput.val());
+        saveSettings();
+    });
+    variableInput.on('input', () => {
+        tracker.variable = normalizeVariable(variableInput.val());
+        variableInput.val(tracker.variable);
+        updateMacroHint();
+        saveSettings();
+    });
+    openInput.on('input', () => {
+        tracker.openTag = clean(openInput.val());
+        updateError();
+        saveSettings();
+    });
+    closeInput.on('input', () => {
+        tracker.closeTag = clean(closeInput.val());
+        updateError();
+        saveSettings();
+    });
+    enabledInput.on('change', () => {
+        tracker.enabled = enabledInput.prop('checked');
+        saveSettings();
+    });
+    promptArea.on('input', () => {
+        tracker.systemPrompt = clean(promptArea.val());
+        saveSettings();
+    });
+
+    const popup = new Popup($content, POPUP_TYPE.TEXT, 'Edit tracker', {
+        okButton: 'Close',
+        wide: true,
+        large: true,
+        allowVerticalScrolling: true,
+        customButtons: [
+            { text: 'Delete', icon: 'fa-solid fa-trash', result: POPUP_RESULT.CUSTOM1 },
+        ],
+    });
+    const result = await popup.show();
+
+    if (result === POPUP_RESULT.CUSTOM1) {
+        settings.trackers.splice(index, 1);
+        saveSettings();
+        renderTrackerSelector();
+        log('Tracker deleted.');
+        return;
+    }
+    const stillEmpty = !(tracker.name || '').trim() && !(tracker.systemPrompt || '').trim();
+    if (wasEmpty && stillEmpty) {
+        settings.trackers.splice(index, 1);
+        saveSettings();
+        log('Empty tracker removed (not named or edited).');
+    }
+    renderTrackerSelector();
+}
+
 function updateStage1Preview() {
     const previewEl = document.getElementById('le_eternalism_stage1_preview');
     if (!previewEl) {
@@ -1347,7 +1753,14 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_stage1_tokens').value = settings.stage1HistoryDepth;
     loadApiBlock('s1', settings.stage1Api);
     loadApiBlock('s3', settings.stage3Api);
+    loadApiBlock('s4', settings.trackerApi);
+    const preTracker = settings.preTracker ?? {};
+    document.getElementById('le_eternalism_pretracker_enabled').checked = !!preTracker.enabled;
+    document.getElementById('le_eternalism_pretracker_open').value = preTracker.openTag ?? '';
+    document.getElementById('le_eternalism_pretracker_close').value = preTracker.closeTag ?? '';
+    document.getElementById('le_eternalism_tracker_think').value = settings.trackerThinkingPrompt ?? '';
     renderLibrarySelector();
+    renderTrackerSelector();
     updateStage1Preview();
 }
 
@@ -1367,6 +1780,13 @@ function collectSettingsFromUi() {
     settings.stage1HistoryDepth = Number(document.getElementById('le_eternalism_stage1_tokens').value) || 0;
     collectApiBlock('s1', settings.stage1Api);
     collectApiBlock('s3', settings.stage3Api);
+    collectApiBlock('s4', settings.trackerApi);
+    settings.preTracker = {
+        enabled: document.getElementById('le_eternalism_pretracker_enabled').checked,
+        openTag: clean(document.getElementById('le_eternalism_pretracker_open').value),
+        closeTag: clean(document.getElementById('le_eternalism_pretracker_close').value),
+    };
+    settings.trackerThinkingPrompt = clean(document.getElementById('le_eternalism_tracker_think').value);
     saveSettings();
     ensureAllMacrosRegistered();
 }
@@ -1401,6 +1821,32 @@ async function initExtension() {
         document.getElementById('le_eternalism_stage1_tokens').addEventListener('input', collectSettingsFromUi);
         bindApiBlock('s1');
         bindApiBlock('s3');
+        bindApiBlock('s4');
+        document.getElementById('le_eternalism_pretracker_enabled').addEventListener('change', collectSettingsFromUi);
+        document.getElementById('le_eternalism_pretracker_open').addEventListener('input', collectSettingsFromUi);
+        document.getElementById('le_eternalism_pretracker_close').addEventListener('input', collectSettingsFromUi);
+        document.getElementById('le_eternalism_tracker_think').addEventListener('input', collectSettingsFromUi);
+        document.getElementById('le_eternalism_tracker_select').addEventListener('change', () => {
+            const select = document.getElementById('le_eternalism_tracker_select');
+            const index = Number(select.value);
+            select.selectedIndex = 0;
+            if (Number.isFinite(index) && index >= 0) {
+                openTrackerEditor(index).catch(error => {
+                    console.error('[LE Eternalism] Tracker editor error:', error);
+                });
+            }
+        });
+        document.getElementById('le_eternalism_tracker_add').addEventListener('click', () => {
+            const settings = getSettings();
+            settings.trackers.push({ name: '', variable: '', openTag: '', closeTag: '', systemPrompt: '', enabled: true });
+            saveSettings();
+            renderTrackerSelector();
+            const index = settings.trackers.length - 1;
+            document.getElementById('le_eternalism_tracker_select').selectedIndex = index;
+            openTrackerEditor(index).catch(error => {
+                console.error('[LE Eternalism] Tracker editor error:', error);
+            });
+        });
         document.getElementById('le_eternalism_library_select').addEventListener('change', () => {
             const select = document.getElementById('le_eternalism_library_select');
             const index = Number(select.value);

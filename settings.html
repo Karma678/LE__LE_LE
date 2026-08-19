@@ -108,6 +108,54 @@
             </div>
         </div>
 
+        <div class="le_eternalism_section le_eternalism_section_trackers inline-drawer">
+            <div class="le_eternalism_section_header inline-drawer-toggle inline-drawer-header">
+                <span>Stage 4 — Trackers</span>
+                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+            </div>
+            <div class="inline-drawer-content">
+
+            <div class="le_eternalism_hint">Trackers extract information from AI responses (HP, gold, status, etc.) and put it into macros at the end of the last AI message.</div>
+
+            <div class="flex-container alignItemsCenter flexGap5">
+                <select id="le_eternalism_tracker_select" class="text_pole flex1"></select>
+                <button id="le_eternalism_tracker_add" class="menu_button">+ Add</button>
+            </div>
+            <div class="le_eternalism_hint">Select a tracker to edit/delete prompt in a window.</div>
+
+            <div class="le_eternalism_api_block">
+                <label for="le_eternalism_pretracker_enabled" class="checkbox_label">
+                    <input id="le_eternalism_pretracker_enabled" type="checkbox">
+                    <span>Pre-tracker cleaner</span>
+                </label>
+                <div class="flex-container alignItemsCenter flexGap5">
+                    <input id="le_eternalism_pretracker_open" class="text_pole flex1" placeholder="Opening tag, e.g. <state>">
+                    <input id="le_eternalism_pretracker_close" class="text_pole flex1" placeholder="Closing tag, e.g. </state>">
+                </div>
+                <div class="le_eternalism_hint">Takes the content between these tags from the last AI message, inserts it into the Stage 4 prompt and cleans it out of the message.</div>
+            </div>
+
+            <label for="le_eternalism_tracker_think">Thinking prompt (system prompt, placed last)</label>
+            <textarea id="le_eternalism_tracker_think" class="text_pole" rows="3"></textarea>
+
+            <div class="le_eternalism_api_block">
+                <label for="le_eternalism_s4_custom" class="checkbox_label">
+                    <input id="le_eternalism_s4_custom" type="checkbox">
+                    <span>Stage 4 — use a different API/model</span>
+                </label>
+                <input id="le_eternalism_s4_url" class="text_pole" placeholder="Base URL, e.g. https://api.deepseek.com/v1">
+                <input id="le_eternalism_s4_key" class="text_pole" type="password" placeholder="API key">
+                <input id="le_eternalism_s4_model" class="text_pole" placeholder="Model, e.g. deepseek-v4-flash">
+                <div class="flex-container alignItemsCenter flexGap5">
+                    <label for="le_eternalism_s4_max" class="le_eternalism_hint">Max tokens</label>
+                    <input id="le_eternalism_s4_max" class="text_pole" type="number" min="1" step="100" value="2000">
+                    <label for="le_eternalism_s4_temp" class="le_eternalism_hint">Temp</label>
+                    <input id="le_eternalism_s4_temp" class="text_pole" type="number" min="0" max="2" step="0.1" value="0.7">
+                </div>
+            </div>
+            </div>
+        </div>
+
         <pre id="le_eternalism_log"></pre>
         <div id="le_eternalism_status" class="le_eternalism_hint"></div>
 
