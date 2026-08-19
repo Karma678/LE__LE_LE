@@ -1108,6 +1108,16 @@ async function runTrackerStage(messageId) {
         }
     }
 
+    if (settings.debugMode) {
+        const confirmed = await previewTrackerStageResult(response, trackers, extracted);
+        if (!confirmed) {
+            toastr.info('LE Eternalism: Stage 4 cancelled — message kept as is.');
+            log('Stage 4 aborted by user at debug checkpoint.');
+            return false;
+        }
+        log('Stage 4 debug checkpoint confirmed.');
+    }
+
     for (const tracker of trackers) {
         const variable = normalizeVariable(tracker.variable);
         const tag = `[[le_tracker_${variable}]]`;
@@ -1139,6 +1149,32 @@ async function runTrackerStage(messageId) {
     await context.saveChat();
     log('Tracker stage finished: macros filled at the end of the last AI message.');
     return true;
+}
+
+async function previewTrackerStageResult(response, trackers, extracted) {
+    const context = SillyTavern.getContext();
+    const { Popup, POPUP_TYPE, POPUP_RESULT } = context;
+    const summary = trackers.map(tracker => {
+        const variable = normalizeVariable(tracker.variable);
+        const content = extracted.get(variable);
+        return `${tracker.name || '(unnamed)'}: ${content !== undefined ? `extracted ${content.length} chars` : 'tags not found in the response'}`;
+    }).join('\n');
+    const popup = new Popup(
+        `<h3>Stage 4 — Tracker output</h3>`
+        + `<div class="le_eternalism_hint">Output of the tracker stage. The content inside the tracker tags will be placed into the macros at the end of the last AI message.</div>`
+        + `<pre class="le_eternalism_debug">${escapeHtml(response)}</pre>`
+        + `<div class="le_eternalism_debug_summary">Parsed trackers:\n${escapeHtml(summary)}</div>`,
+        POPUP_TYPE.TEXT,
+        '',
+        {
+            wide: true,
+            allowVerticalScrolling: true,
+            okButton: 'Apply to the last message',
+            cancelButton: 'Abort',
+        },
+    );
+    const result = await popup.show();
+    return result === POPUP_RESULT.AFFIRMATIVE;
 }
 
 async function manualRunTrackerStage() {
