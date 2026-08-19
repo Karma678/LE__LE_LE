@@ -1468,7 +1468,7 @@ async function handlePromptReady(eventData) {
                 replacements++;
             }
         }
-        msg.content = msg.content.replace(/(?:^[ \t]*\[\[le_[^\]]*\]\][ \t]*\r?\n?)|(?:\[\[le_[^\]]*\]\])/gm, '');
+        msg.content = msg.content.replace(/(?:^[ \t]*\[\[le_(?!tracker_)[^\]]*\]\][ \t]*\r?\n?)|(?:\[\[le_(?!tracker_)[^\]]*\]\])/gm, '');
     });
 
     let droppedEmpty = 0;
