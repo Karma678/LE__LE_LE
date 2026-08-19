@@ -92,6 +92,16 @@ async function rawGenerate(params) {
     rawRequestInFlight = true;
     try {
         const context = SillyTavern.getContext();
+        if (Array.isArray(params.prompt)) {
+            for (const message of params.prompt) {
+                if (message && typeof message.content === 'string') {
+                    const substituted = typeof context.substituteParams === 'function'
+                        ? context.substituteParams(message.content)
+                        : message.content;
+                    message.content = cleanPromptContent(substituted);
+                }
+            }
+        }
         if (typeof context.generateRawData === 'function') {
             const data = await context.generateRawData({ prompt: params.prompt });
             const extract = typeof context.extractMessageFromData === 'function'
@@ -137,6 +147,14 @@ async function customChatCompletion(config, messages, signal = null) {
     const baseUrl = String(config.baseUrl ?? '').trim().replace(/\/+$/, '');
     rawRequestInFlight = true;
     try {
+        for (const message of messages) {
+            if (message && typeof message.content === 'string') {
+                const substituted = typeof context.substituteParams === 'function'
+                    ? context.substituteParams(message.content)
+                    : message.content;
+                message.content = cleanPromptContent(substituted);
+            }
+        }
         const payload = ChatCompletionService.createRequestData({
             stream: false,
             messages,
@@ -514,7 +532,7 @@ function buildCharacterCard() {
     if (parts.length === 0) {
         return '';
     }
-    return `<npc_card>\n${parts.join('\n\n')}\n</npc_card>`;
+    return `<npc_card>\n${cleanPromptContent(parts.join('\n\n'))}\n</npc_card>`;
 }
 
 function buildPlayerCard() {
@@ -531,7 +549,7 @@ function buildPlayerCard() {
     if (persona) {
         parts.push(`Description:\n${persona}`);
     }
-    return `<player_card>\n${parts.join('\n\n')}\n</player_card>`;
+    return `<player_card>\n${cleanPromptContent(parts.join('\n\n'))}\n</player_card>`;
 }
 
 async function runAnalysisAndApply(reason, genType) {
@@ -987,7 +1005,7 @@ async function buildLorebookText() {
             const chatText = context.chat.map(m => (typeof m.mes === 'string' ? m.mes : '')).join('\n');
             const text = await context.lorebook.getContextLorebook(chatText, context.characterId, 1000);
             if (typeof text === 'string' && text.trim()) {
-                return text.trim();
+                return cleanPromptContent(text.trim());
             }
         }
     } catch (error) {
@@ -1005,7 +1023,7 @@ async function buildLorebookText() {
                 }
             }
             if (parts.length > 0) {
-                return parts.join('\n\n');
+                return cleanPromptContent(parts.join('\n\n'));
             }
         }
     } catch (error) {
@@ -1636,14 +1654,21 @@ function handleCombinePrompts(eventData) {
         return;
     }
     const prompt = eventData?.prompt;
+    const substitute = text => {
+        const context = SillyTavern.getContext();
+        const substituted = typeof context.substituteParams === 'function'
+            ? context.substituteParams(text)
+            : text;
+        return cleanPromptContent(substituted);
+    };
     if (typeof prompt === 'string') {
-        const replaced = applyPromptReplacements(prompt);
+        const replaced = substitute(applyPromptReplacements(prompt));
         eventData.prompt = replaced;
         lastStage2Prompt = replaced;
     } else if (Array.isArray(prompt)) {
         for (const m of prompt) {
             if (m && typeof m.content === 'string') {
-                m.content = applyPromptReplacements(m.content);
+                m.content = substitute(applyPromptReplacements(m.content));
             }
         }
         lastStage2Prompt = prompt.map(m => {
