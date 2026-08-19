@@ -1022,6 +1022,13 @@ async function runTrackerStage(messageId) {
     } else {
         log('Tracker stage: no lorebook context available.');
     }
+    const npcCard = buildCharacterCard();
+    if (npcCard) {
+        messages.push({ role: 'system', content: npcCard });
+        log(`Tracker stage: character card added (${npcCard.length} chars).`);
+    } else {
+        log('Tracker stage: no character card available.');
+    }
     const history = await buildTrackerHistory();
     if (history.length > 0) {
         messages.push(...history);

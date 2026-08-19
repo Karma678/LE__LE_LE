@@ -27,7 +27,7 @@ The extension adds three steps around your normal SillyTavern generation:
 
 <img width="618" height="603" alt="ggggg" src="https://github.com/user-attachments/assets/87a232c1-eb4b-4714-b5b7-4dd5d48e726f" />
 
-4. **Stage 4 — Trackers.** After post-processing, one more request extracts tracker information (HP, gold, status, etc.) from the reply using opening/closing tags. Each tracker has its own tags and system prompt; the extracted content is placed into the tracker's macro at the end of the last AI message (e.g. `[[le_tracker_hp]]` → the extracted value). The optional **pre-tracker cleaner** takes additional context from the reply (the content between its tags), feeds it into the Stage 4 request and cleans it out of the message. Stage 4 context order: lorebook info → full chat context → main system prompt → pre-tracker content → tracker system prompts → thinking prompt.
+4. **Stage 4 — Trackers.** After post-processing, one more request extracts tracker information (HP, gold, status, etc.) from the reply using opening/closing tags. Each tracker has its own tags and system prompt; the extracted content is placed into the tracker's macro at the end of the last AI message (e.g. `[[le_tracker_hp]]` → the extracted value). The optional **pre-tracker cleaner** takes additional context from the reply (the content between its tags), feeds it into the Stage 4 request and cleans it out of the message. Stage 4 context order: lorebook info → character card ({{char}}) → full chat context → main system prompt → pre-tracker content → tracker system prompts → thinking prompt.
 
 ## First-time setup
 
