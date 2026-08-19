@@ -47,6 +47,7 @@ const defaultSettings = {
     trackerApi: { enabled: false, baseUrl: '', apiKey: '', model: '', maxTokens: 2000, temperature: 0.7 },
     trackers: [],
     preTracker: { enabled: false, openTag: '', closeTag: '' },
+    trackerMainPrompt: '',
     trackerThinkingPrompt: '',
     library: [],
 };
@@ -1016,6 +1017,10 @@ async function runTrackerStage(messageId) {
         messages.push(...history);
         log(`Tracker stage: full chat context added (${history.length} messages).`);
     }
+    if (clean(settings.trackerMainPrompt).trim()) {
+        messages.push({ role: 'system', content: clean(settings.trackerMainPrompt).trim() });
+        log('Tracker stage: main system prompt added.');
+    }
     if (preTrackerContent) {
         messages.push({ role: 'user', content: `<pre_tracker>\n${preTrackerContent}\n</pre_tracker>` });
         log(`Tracker stage: pre-tracker content added (${preTrackerContent.length} chars).`);
@@ -1759,6 +1764,7 @@ function loadSettingsIntoUi() {
     document.getElementById('le_eternalism_pretracker_open').value = preTracker.openTag ?? '';
     document.getElementById('le_eternalism_pretracker_close').value = preTracker.closeTag ?? '';
     document.getElementById('le_eternalism_tracker_think').value = settings.trackerThinkingPrompt ?? '';
+    document.getElementById('le_eternalism_tracker_main').value = settings.trackerMainPrompt ?? '';
     renderLibrarySelector();
     renderTrackerSelector();
     updateStage1Preview();
@@ -1787,6 +1793,7 @@ function collectSettingsFromUi() {
         closeTag: clean(document.getElementById('le_eternalism_pretracker_close').value),
     };
     settings.trackerThinkingPrompt = clean(document.getElementById('le_eternalism_tracker_think').value);
+    settings.trackerMainPrompt = clean(document.getElementById('le_eternalism_tracker_main').value);
     saveSettings();
     ensureAllMacrosRegistered();
 }
@@ -1826,6 +1833,7 @@ async function initExtension() {
         document.getElementById('le_eternalism_pretracker_open').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_pretracker_close').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_tracker_think').addEventListener('input', collectSettingsFromUi);
+        document.getElementById('le_eternalism_tracker_main').addEventListener('input', collectSettingsFromUi);
         document.getElementById('le_eternalism_tracker_select').addEventListener('change', () => {
             const select = document.getElementById('le_eternalism_tracker_select');
             const index = Number(select.value);
