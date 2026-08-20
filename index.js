@@ -1,4 +1,6 @@
 const MODULE_NAME = 'le_eternalism';
+const SETTINGS_KEY = 'le_eternalism_lele';
+const BACKUP_STORAGE_KEY = 'le_eternalism_lele_backup';
 
 const REGEX_ENGINE_PATHS = [
     '../../regex/engine.js',
@@ -214,12 +216,43 @@ function ensureAllMacrosRegistered() {
     }
 }
 
+function loadLocalBackup() {
+    if (typeof localStorage === 'undefined') {
+        return null;
+    }
+    try {
+        const raw = localStorage.getItem(BACKUP_STORAGE_KEY);
+        if (!raw) {
+            return null;
+        }
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' && parsed.settings && typeof parsed.settings === 'object' ? parsed.settings : null;
+    } catch (error) {
+        console.warn('[LE Eternalism] Could not read local backup:', error);
+        return null;
+    }
+}
+
 function getSettings() {
     const context = SillyTavern.getContext();
-    if (!context.extensionSettings[MODULE_NAME]) {
-        context.extensionSettings[MODULE_NAME] = JSON.parse(JSON.stringify(defaultSettings));
+    if (!context.extensionSettings[SETTINGS_KEY]) {
+        const legacy = context.extensionSettings[MODULE_NAME];
+        const migrated = legacy && typeof legacy === 'object' ? JSON.parse(JSON.stringify(legacy)) : JSON.parse(JSON.stringify(defaultSettings));
+        const backup = loadLocalBackup();
+        if (backup && Array.isArray(backup.trackers) && backup.trackers.length > 0) {
+            migrated.trackers = backup.trackers;
+            migrated.preTracker = backup.preTracker ?? migrated.preTracker;
+            migrated.trackerMainPrompt = backup.trackerMainPrompt ?? migrated.trackerMainPrompt;
+            migrated.trackerThinkingPrompt = backup.trackerThinkingPrompt ?? migrated.trackerThinkingPrompt;
+            migrated.trackerPromptsOnTop = backup.trackerPromptsOnTop ?? migrated.trackerPromptsOnTop;
+            migrated.trackerApi = backup.trackerApi ?? migrated.trackerApi;
+            log('Restored tracker settings from the local backup.');
+        }
+        context.extensionSettings[SETTINGS_KEY] = migrated;
+        log('Settings migrated to the dedicated LE__LE_LE storage key.');
+        saveSettings();
     }
-    const settings = context.extensionSettings[MODULE_NAME];
+    const settings = context.extensionSettings[SETTINGS_KEY];
     for (const key of Object.keys(defaultSettings)) {
         if (!Object.hasOwn(settings, key)) {
             settings[key] = JSON.parse(JSON.stringify(defaultSettings[key]));
@@ -234,12 +267,36 @@ function getSettings() {
     if (!settings.preTracker || typeof settings.preTracker !== 'object') {
         settings.preTracker = { enabled: false, openTag: '', closeTag: '' };
     }
+    if (settings.trackers.length === 0) {
+        const backup = loadLocalBackup();
+        if (backup && Array.isArray(backup.trackers) && backup.trackers.length > 0) {
+            settings.trackers = backup.trackers;
+            settings.preTracker = backup.preTracker ?? settings.preTracker;
+            settings.trackerMainPrompt = backup.trackerMainPrompt ?? settings.trackerMainPrompt;
+            settings.trackerThinkingPrompt = backup.trackerThinkingPrompt ?? settings.trackerThinkingPrompt;
+            settings.trackerPromptsOnTop = backup.trackerPromptsOnTop ?? settings.trackerPromptsOnTop;
+            settings.trackerApi = backup.trackerApi ?? settings.trackerApi;
+            log('Restored tracker settings from the local backup (lost settings recovered).');
+            saveSettings();
+        }
+    }
     settings.enabled = true;
     return settings;
 }
 
 function saveSettings() {
     const context = SillyTavern.getContext();
+    const settings = context.extensionSettings[SETTINGS_KEY];
+    if (settings && typeof localStorage !== 'undefined') {
+        try {
+            localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify({
+                savedAt: Date.now(),
+                settings: sanitizeApiBlocks(settings),
+            }));
+        } catch (error) {
+            console.warn('[LE Eternalism] Could not save local backup:', error);
+        }
+    }
     context.saveSettingsDebounced();
 }
 
@@ -312,21 +369,17 @@ async function importSettings(event) {
             throw new Error('Invalid settings file.');
         }
         const context = SillyTavern.getContext();
-        const previous = context.extensionSettings[MODULE_NAME] || {};
-        const preserved = {
-            s1: { apiKey: previous.stage1Api?.apiKey ?? '', baseUrl: previous.stage1Api?.baseUrl ?? '', model: previous.stage1Api?.model ?? '' },
-            s3: { apiKey: previous.stage3Api?.apiKey ?? '', baseUrl: previous.stage3Api?.baseUrl ?? '', model: previous.stage3Api?.model ?? '' },
-            s4: { apiKey: previous.trackerApi?.apiKey ?? '', baseUrl: previous.trackerApi?.baseUrl ?? '', model: previous.trackerApi?.model ?? '' },
-        };
-        const sanitized = sanitizeApiBlocks(data);
-        context.extensionSettings[MODULE_NAME] = sanitized;
-        for (const [key, value] of [['stage1Api', preserved.s1], ['stage3Api', preserved.s3], ['trackerApi', preserved.s4]]) {
-            if (context.extensionSettings[MODULE_NAME][key] && typeof context.extensionSettings[MODULE_NAME][key] === 'object') {
-                context.extensionSettings[MODULE_NAME][key].apiKey = value.apiKey;
-                context.extensionSettings[MODULE_NAME][key].baseUrl = value.baseUrl;
-                context.extensionSettings[MODULE_NAME][key].model = value.model;
+        const previous = context.extensionSettings[SETTINGS_KEY] || {};
+        const sanitized = JSON.parse(JSON.stringify(data));
+        for (const key of ['stage1Api', 'stage3Api', 'trackerApi']) {
+            if (sanitized[key] && typeof sanitized[key] === 'object') {
+                const prevBlock = previous[key] ?? {};
+                sanitized[key].apiKey = prevBlock.apiKey ?? sanitized[key].apiKey ?? '';
+                sanitized[key].baseUrl = prevBlock.baseUrl ?? sanitized[key].baseUrl ?? '';
+                sanitized[key].model = prevBlock.model ?? sanitized[key].model ?? '';
             }
         }
+        context.extensionSettings[SETTINGS_KEY] = sanitized;
         saveSettings();
         loadSettingsIntoUi();
         ensureAllMacrosRegistered();
